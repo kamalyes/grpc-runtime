@@ -2,7 +2,7 @@
  * @Author: kamalyes 501893067@qq.com
  * @Date: 2026-05-28 00:00:00
  * @LastEditors: kamalyes 501893067@qq.com
- * @LastEditTime: 2026-05-28 02:30:55
+ * @LastEditTime: 2026-05-28 03:08:27
  * @FilePath: \grpc-runtime\route_desc.go
  * @Description: 生成器使用的路由描述 facade，隐藏旧 Pattern 注册细节
  *
@@ -18,6 +18,8 @@ import (
 
 	"github.com/kamalyes/grpc-runtime/binding"
 	"github.com/kamalyes/grpc-runtime/utilities"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -69,6 +71,10 @@ type RouteDesc struct {
 	Template string
 	// Operation gRPC 方法全限定名，如 "/apex.api.UserService/UserGet"
 	Operation string
+	// 是否将请求上下文传递给 gRPC 方法参数
+	UseRequestContext bool
+	// 是否将响应上下文传递给 gRPC 方法参数
+	Incoming bool
 	// Request 创建新的请求消息实例的工厂函数
 	Request func() proto.Message
 	// Body HTTP body 绑定描述，使用 NoBody() 或 Body("field_path")
@@ -89,9 +95,9 @@ type RouteDesc struct {
 //	new request message → decode body → apply path params → apply query params → apply field mask → validate
 //
 // 最后调用 RouteInvoker 完成 gRPC 调用并转发响应
-func RegisterRoutes(_ context.Context, mux *ServeMux, routes []RouteDesc) error {
+func RegisterRoutes(ctx context.Context, mux *ServeMux, routes []RouteDesc) error {
 	for _, route := range routes {
-		if err := registerRoute(mux, route); err != nil {
+		if err := registerRoute(ctx, mux, route); err != nil {
 			return err
 		}
 	}
@@ -101,9 +107,9 @@ func RegisterRoutes(_ context.Context, mux *ServeMux, routes []RouteDesc) error 
 // registerRoute 将单条 RouteDesc 注册到 mux
 // 如果 RouteDesc 提供了 Request + Invoker，则使用 BuildRequest pipeline
 // 否则回退到简单的 HandlePath 注册（兼容旧 HandlerFunc 模式）
-func registerRoute(mux *ServeMux, route RouteDesc) error {
+func registerRoute(ctx context.Context, mux *ServeMux, route RouteDesc) error {
 	if route.Request != nil && route.Invoker != nil {
-		return mux.HandlePath(route.Method, route.Template, newRouteHandler(mux, route))
+		return mux.HandlePath(route.Method, route.Template, newRouteHandler(ctx, mux, route))
 	}
 	// 兼容模式：只有 Method + Template + Handler
 	if route.Handler != nil {
@@ -114,24 +120,49 @@ func registerRoute(mux *ServeMux, route RouteDesc) error {
 }
 
 // newRouteHandler 根据 RouteDesc 创建完整的请求处理 handler
-func newRouteHandler(mux *ServeMux, route RouteDesc) HandlerFunc {
+func newRouteHandler(ctx context.Context, mux *ServeMux, route RouteDesc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-		ctx := r.Context()
+		if ctx == nil || route.UseRequestContext {
+			ctx = r.Context()
+		}
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		var stream ServerTransportStream
+		if route.Incoming {
+			ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		}
+
+		_, outboundMarshaler := MarshalerForRequest(mux, r)
+		if route.Operation != "" {
+			var err error
+			if route.Incoming {
+				ctx, err = AnnotateIncomingContext(ctx, mux, r, route.Operation, WithHTTPPathPattern(route.Template))
+			} else {
+				ctx, err = AnnotateContext(ctx, mux, r, route.Operation, WithHTTPPathPattern(route.Template))
+			}
+			if err != nil {
+				mux.errorHandler(ctx, mux, outboundMarshaler, w, r, err)
+				return
+			}
+		}
 
 		// 1. 创建新的请求消息
 		msg := route.Request()
 
 		// 2. 构建请求：decode body → path params → query params → field mask → validate
 		if err := BuildRequest(ctx, mux, r, msg, pathParams, route.Body, route.QueryFilter); err != nil {
-			_, outboundMarshaler := MarshalerForRequest(mux, r)
 			mux.errorHandler(ctx, mux, outboundMarshaler, w, r, err)
 			return
 		}
 
 		// 3. 调用 gRPC invoker
 		resp, md, err := route.Invoker(ctx, msg, nil)
+		if route.Incoming {
+			md.HeaderMD = metadata.Join(md.HeaderMD, stream.Header())
+			md.TrailerMD = metadata.Join(md.TrailerMD, stream.Trailer())
+		}
 		if err != nil {
-			_, outboundMarshaler := MarshalerForRequest(mux, r)
 			mux.errorHandler(ctx, mux, outboundMarshaler, w, r, err)
 			return
 		}
@@ -140,7 +171,6 @@ func newRouteHandler(mux *ServeMux, route RouteDesc) HandlerFunc {
 		ctx = NewServerMetadataContext(ctx, md)
 
 		// 5. 转发响应
-		_, outboundMarshaler := MarshalerForRequest(mux, r)
-		ForwardResponseMessage(ctx, mux, outboundMarshaler, w, r, resp)
+		ForwardResponseMessage(ctx, mux, outboundMarshaler, w, r, resp, mux.GetForwardResponseOptions()...)
 	}
 }
