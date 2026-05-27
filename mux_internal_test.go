@@ -3,6 +3,8 @@ package runtime
 import (
 	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWithIncomingHeaderMatcher_matchedMalformedHeaders(t *testing.T) {
@@ -38,7 +40,7 @@ func TestWithIncomingHeaderMatcher_matchedMalformedHeaders(t *testing.T) {
 			return a[i] < a[j]
 		})
 		sort.Slice(b, func(i, j int) bool {
-			return a[i] < a[j]
+			return b[i] < b[j]
 		})
 		for idx := range a {
 			if a[idx] != b[idx] {
@@ -49,10 +51,9 @@ func TestWithIncomingHeaderMatcher_matchedMalformedHeaders(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		out := tt.matcher.matchedMalformedHeaders()
-		if !sliceEqual(tt.want, out) {
-			t.Errorf("matchedMalformedHeaders not match; Want %v; got %v",
-				tt.want, out)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			out := tt.matcher.matchedMalformedHeaders()
+			assert.True(t, sliceEqual(tt.want, out), "want %v, got %v", tt.want, out)
+		})
 	}
 }

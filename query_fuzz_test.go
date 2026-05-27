@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/kamalyes/grpc-runtime/internal/examplepb"
+	"github.com/kamalyes/grpc-runtime/testpb"
 	"github.com/kamalyes/grpc-runtime/utilities"
 )
 
@@ -22,7 +22,7 @@ func FuzzPopulateQueryParameters(f *testing.F) {
 	f.Add("oneof_string_value=foobar")
 	f.Add("nested_oneof_value_one.int64Value=-1&nested_oneof_value_one.string_value=foo")
 	f.Fuzz(func(t *testing.T, query string) {
-		in := &examplepb.ABitOfEverything{}
+		in := &testpb.ABitOfEverything{}
 		values, err := url.ParseQuery(query)
 		if err != nil {
 			return

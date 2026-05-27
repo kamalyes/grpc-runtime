@@ -1,16 +1,25 @@
+/*
+ * @Author: kamalyes 501893067@qq.com
+ * @Date: 2026-05-27 22:38:58
+ * @LastEditors: kamalyes 501893067@qq.com
+ * @LastEditTime: 2026-05-28 02:22:11
+ * @FilePath: \apex\grpc-runtime\marshal_httpbodyproto_test.go
+ * @Description: HTTP Body协议序列化测试
+ */
 package runtime
 
 import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestHTTPBodyContentType(t *testing.T) {
 	m := HTTPBodyMarshaler{
-		&JSONPb{
+		Marshaler: &JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
 				UseProtoNames: true,
 			},
@@ -21,18 +30,14 @@ func TestHTTPBodyContentType(t *testing.T) {
 		ContentType: expected,
 	}
 	res := m.ContentType(nil)
-	if res != "application/json" {
-		t.Errorf("content type not equal (%q, %q)", res, expected)
-	}
+	assert.Equal(t, "application/json", res)
 	res = m.ContentType(message)
-	if res != expected {
-		t.Errorf("content type not equal (%q, %q)", res, expected)
-	}
+	assert.Equal(t, expected, res)
 }
 
 func TestHTTPBodyMarshal(t *testing.T) {
 	m := HTTPBodyMarshaler{
-		&JSONPb{
+		Marshaler: &JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
 				UseProtoNames: true,
 			},
@@ -43,11 +48,6 @@ func TestHTTPBodyMarshal(t *testing.T) {
 		Data: expected,
 	}
 	res, err := m.Marshal(message)
-	if err != nil {
-		t.Errorf("m.Marshal(%#v) failed with %v; want success", message, err)
-	}
-	if !bytes.Equal(res, expected) {
-		t.Errorf("Marshalled data not equal (%q, %q)", res, expected)
-
-	}
+	assert.NoError(t, err)
+	assert.True(t, bytes.Equal(res, expected), "got %q, want %q", res, expected)
 }

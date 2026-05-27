@@ -7,26 +7,22 @@ import (
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMarshalerForRequest(t *testing.T) {
 	ctx := context.Background()
 	r, err := http.NewRequestWithContext(ctx, "GET", "http://example.com", nil)
-	if err != nil {
-		t.Fatalf(`http.NewRequest("GET", "http://example.com", nil) failed with %v; want success`, err)
-	}
+	assert.NoError(t, err, `http.NewRequest("GET", "http://example.com", nil) failed`)
 
 	mux := NewServeMux()
 
 	r.Header.Set("Accept", "application/x-out")
 	r.Header.Set("Content-Type", "application/x-in")
 	in, out := MarshalerForRequest(mux, r)
-	if _, ok := in.(*HTTPBodyMarshaler); !ok {
-		t.Errorf("in = %#v; want a HTTPBodyMarshaler", in)
-	}
-	if _, ok := out.(*HTTPBodyMarshaler); !ok {
-		t.Errorf("out = %#v; want a HTTPBodyMarshaler", in)
-	}
+	assert.IsType(t, &HTTPBodyMarshaler{}, in)
+	assert.IsType(t, &HTTPBodyMarshaler{}, out)
 
 	marshalers := []dummyMarshaler{0, 1, 2}
 	specs := []struct {
@@ -35,20 +31,16 @@ func TestMarshalerForRequest(t *testing.T) {
 		wantIn  Marshaler
 		wantOut Marshaler
 	}{
-		// The option with wildcard overwrites the default configuration
 		{
 			opt:     WithMarshalerOption(MIMEWildcard, &marshalers[0]),
 			wantIn:  &marshalers[0],
 			wantOut: &marshalers[0],
 		},
-		// You can specify a marshaler for a specific MIME type.
-		// The output marshaler follows the input one unless specified.
 		{
 			opt:     WithMarshalerOption("application/x-in", &marshalers[1]),
 			wantIn:  &marshalers[1],
 			wantOut: &marshalers[1],
 		},
-		// You can also separately specify an output marshaler
 		{
 			opt:     WithMarshalerOption("application/x-out", &marshalers[2]),
 			wantIn:  &marshalers[1],
@@ -63,32 +55,20 @@ func TestMarshalerForRequest(t *testing.T) {
 		mux = NewServeMux(opts...)
 
 		in, out = MarshalerForRequest(mux, r)
-		if got, want := in, spec.wantIn; got != want {
-			t.Errorf("in = %#v; want %#v", got, want)
-		}
-		if got, want := out, spec.wantOut; got != want {
-			t.Errorf("out = %#v; want %#v", got, want)
-		}
+		assert.Same(t, spec.wantIn, in, "spec %d: in", i)
+		assert.Same(t, spec.wantOut, out, "spec %d: out", i)
 	}
 
 	r.Header.Set("Content-Type", "application/x-in; charset=UTF-8")
 	in, out = MarshalerForRequest(mux, r)
-	if got, want := in, &marshalers[1]; got != want {
-		t.Errorf("in = %#v; want %#v", got, want)
-	}
-	if got, want := out, &marshalers[2]; got != want {
-		t.Errorf("out = %#v; want %#v", got, want)
-	}
+	assert.Same(t, &marshalers[1], in)
+	assert.Same(t, &marshalers[2], out)
 
 	r.Header.Set("Content-Type", "application/x-another")
 	r.Header.Set("Accept", "application/x-another")
 	in, out = MarshalerForRequest(mux, r)
-	if got, want := in, &marshalers[0]; got != want {
-		t.Errorf("in = %#v; want %#v", got, want)
-	}
-	if got, want := out, &marshalers[0]; got != want {
-		t.Errorf("out = %#v; want %#v", got, want)
-	}
+	assert.Same(t, &marshalers[0], in)
+	assert.Same(t, &marshalers[0], out)
 }
 
 type dummyMarshaler int

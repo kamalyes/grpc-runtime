@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/kamalyes/grpc-runtime/internal/examplepb"
+	examplepb "github.com/kamalyes/grpc-runtime/testpb"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -37,26 +38,14 @@ var message = &examplepb.ABitOfEverything{
 func TestProtoMarshalUnmarshal(t *testing.T) {
 	marshaller := ProtoMarshaller{}
 
-	// Marshal
 	buffer, err := marshaller.Marshal(message)
-	if err != nil {
-		t.Fatalf("Marshalling returned error: %s", err.Error())
-	}
+	assert.NoError(t, err, "Marshalling returned error")
 
-	// Unmarshal
 	unmarshalled := &examplepb.ABitOfEverything{}
 	err = marshaller.Unmarshal(buffer, unmarshalled)
-	if err != nil {
-		t.Fatalf("Unmarshalling returned error: %s", err.Error())
-	}
+	assert.NoError(t, err, "Unmarshalling returned error")
 
-	if !proto.Equal(unmarshalled, message) {
-		t.Errorf(
-			"Unmarshalled didn't match original message: (original = %v) != (unmarshalled = %v)",
-			unmarshalled,
-			message,
-		)
-	}
+	assert.True(t, proto.Equal(unmarshalled, message), "Unmarshalled didn't match original message: (original = %v) != (unmarshalled = %v)", message, unmarshalled)
 }
 
 func TestProtoEncoderDecodert(t *testing.T) {
@@ -67,24 +56,12 @@ func TestProtoEncoderDecodert(t *testing.T) {
 	encoder := marshaller.NewEncoder(&buf)
 	decoder := marshaller.NewDecoder(&buf)
 
-	// Encode
 	err := encoder.Encode(message)
-	if err != nil {
-		t.Fatalf("Encoding returned error: %s", err.Error())
-	}
+	assert.NoError(t, err, "Encoding returned error")
 
-	// Decode
 	unencoded := &examplepb.ABitOfEverything{}
 	err = decoder.Decode(unencoded)
-	if err != nil {
-		t.Fatalf("Unmarshalling returned error: %s", err.Error())
-	}
+	assert.NoError(t, err, "Unmarshalling returned error")
 
-	if !proto.Equal(unencoded, message) {
-		t.Errorf(
-			"Unencoded didn't match original message: (original = %v) != (unencoded = %v)",
-			unencoded,
-			message,
-		)
-	}
+	assert.True(t, proto.Equal(unencoded, message), "Unencoded didn't match original message: (original = %v) != (unencoded = %v)", message, unencoded)
 }

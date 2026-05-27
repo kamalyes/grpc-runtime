@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/kamalyes/grpc-runtime/internal/examplepb"
+	"github.com/kamalyes/grpc-runtime/testpb"
 	"github.com/kamalyes/grpc-runtime/utilities"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -28,7 +29,7 @@ func BenchmarkPopulateQueryParameters(b *testing.B) {
 
 	fieldmaskStr := "float_value,double_value"
 
-	msg := &examplepb.Proto3Message{}
+	msg := &testpb.Proto3Message{}
 	values := url.Values{
 		"float_value":            {"1.5"},
 		"double_value":           {"2.5"},
@@ -102,18 +103,14 @@ func TestPopulateParameters(t *testing.T) {
 	for i := range structValueValues {
 		structValueValues[i] = &structpb.Value{}
 		err := structValueValues[i].UnmarshalJSON([]byte(structValueJsonStrings[i]))
-		if err != nil {
-			t.Errorf("build struct.Value value failed: %s", err.Error())
-		}
+		assert.NoError(t, err, "build struct.Value value failed")
 	}
 	structJsonStrings := []string{`{"a":{"b":1}}`, "{}", `{"c":[1,2],"d":[{"e":1,"f":{}}]}`}
 	structValues := make([]*structpb.Struct, len(structJsonStrings))
 	for i := range structValues {
 		structValues[i] = &structpb.Struct{}
 		err := structValues[i].UnmarshalJSON([]byte(structJsonStrings[i]))
-		if err != nil {
-			t.Errorf("build struct.Struct value failed: %s", err.Error())
-		}
+		assert.NoError(t, err, "build struct.Struct value failed")
 	}
 
 	for i, spec := range []struct {
@@ -174,7 +171,7 @@ func TestPopulateParameters(t *testing.T) {
 				"struct_value":           {structJsonStrings[0]},
 			},
 			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
+			want: &testpb.Proto3Message{
 				FloatValue:         1.5,
 				DoubleValue:        2.5,
 				Int64Value:         -1,
@@ -187,8 +184,8 @@ func TestPopulateParameters(t *testing.T) {
 				RepeatedValue:      []string{"a", "b", "c"},
 				OptionalValue:      &optionalStr,
 				RepeatedMessage:    []*wrapperspb.UInt64Value{{Value: 1}, {Value: 2}, {Value: 3}},
-				EnumValue:          examplepb.EnumValue_Y,
-				RepeatedEnum:       []examplepb.EnumValue{examplepb.EnumValue_Y, examplepb.EnumValue_Z, examplepb.EnumValue_X},
+				EnumValue:          testpb.EnumValue_Y,
+				RepeatedEnum:       []testpb.EnumValue{testpb.EnumValue_Y, testpb.EnumValue_Z, testpb.EnumValue_X},
 				TimestampValue:     timePb,
 				DurationValue:      durationPb,
 				FieldmaskValue:     fieldmaskPb,
@@ -255,7 +252,7 @@ func TestPopulateParameters(t *testing.T) {
 				"struct_value":       {structJsonStrings[1]},
 			},
 			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
+			want: &testpb.Proto3Message{
 				FloatValue:         1.5,
 				DoubleValue:        2.5,
 				Int64Value:         -1,
@@ -266,8 +263,8 @@ func TestPopulateParameters(t *testing.T) {
 				StringValue:        "str",
 				BytesValue:         []byte("bytes"),
 				RepeatedValue:      []string{"a", "b", "c"},
-				EnumValue:          examplepb.EnumValue_Y,
-				RepeatedEnum:       []examplepb.EnumValue{examplepb.EnumValue_Y, examplepb.EnumValue_Z, examplepb.EnumValue_X},
+				EnumValue:          testpb.EnumValue_Y,
+				RepeatedEnum:       []testpb.EnumValue{testpb.EnumValue_Y, testpb.EnumValue_Z, testpb.EnumValue_X},
 				TimestampValue:     timePb,
 				DurationValue:      durationPb,
 				FieldmaskValue:     fieldmaskPb,
@@ -292,40 +289,16 @@ func TestPopulateParameters(t *testing.T) {
 				"struct_value":       {structJsonStrings[2]},
 			},
 			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				EnumValue:        examplepb.EnumValue_Z,
-				RepeatedEnum:     []examplepb.EnumValue{examplepb.EnumValue_X, examplepb.EnumValue_Z, examplepb.EnumValue_X},
+			want: &testpb.Proto3Message{
+				EnumValue:        testpb.EnumValue_Z,
+				RepeatedEnum:     []testpb.EnumValue{testpb.EnumValue_X, testpb.EnumValue_Z, testpb.EnumValue_X},
 				StructValueValue: structValueValues[2],
 				StructValue:      structValues[2],
 			},
 		},
-		{
-			values: url.Values{
-				"struct_value_value": {structValueJsonStrings[3]},
-			},
-			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				StructValueValue: structValueValues[3],
-			},
-		},
-		{
-			values: url.Values{
-				"struct_value_value": {structValueJsonStrings[4]},
-			},
-			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				StructValueValue: structValueValues[4],
-			},
-		},
-		{
-			values: url.Values{
-				"struct_value_value": {structValueJsonStrings[5]},
-			},
-			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				StructValueValue: structValueValues[5],
-			},
-		},
+		{values: url.Values{"struct_value_value": {structValueJsonStrings[3]}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{StructValueValue: structValueValues[3]}},
+		{values: url.Values{"struct_value_value": {structValueJsonStrings[4]}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{StructValueValue: structValueValues[4]}},
+		{values: url.Values{"struct_value_value": {structValueJsonStrings[5]}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{StructValueValue: structValueValues[5]}},
 		{
 			values: url.Values{
 				"float_value":    {"1.5"},
@@ -339,7 +312,7 @@ func TestPopulateParameters(t *testing.T) {
 				"repeated_value": {"a", "b", "c"},
 			},
 			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto2Message{
+			want: &testpb.Proto2Message{
 				FloatValue:    proto.Float32(1.5),
 				DoubleValue:   proto.Float64(2.5),
 				Int64Value:    proto.Int64(-1),
@@ -364,7 +337,7 @@ func TestPopulateParameters(t *testing.T) {
 				"repeatedValue": {"a", "b", "c"},
 			},
 			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto2Message{
+			want: &testpb.Proto2Message{
 				FloatValue:    proto.Float32(1.5),
 				DoubleValue:   proto.Float64(2.5),
 				Int64Value:    proto.Int64(-1),
@@ -386,14 +359,14 @@ func TestPopulateParameters(t *testing.T) {
 				"nested.nested.map_value[second]":     {"bar"},
 			},
 			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				Nested: &examplepb.Proto3Message{
-					Nested: &examplepb.Proto3Message{
+			want: &testpb.Proto3Message{
+				Nested: &testpb.Proto3Message{
+					Nested: &testpb.Proto3Message{
 						MapValue: map[string]string{
 							"first":  "foo",
 							"second": "bar",
 						},
-						Nested: &examplepb.Proto3Message{
+						Nested: &testpb.Proto3Message{
 							RepeatedValue: []string{"a", "b", "c"},
 							StringValue:   "s",
 						},
@@ -403,146 +376,46 @@ func TestPopulateParameters(t *testing.T) {
 				},
 			},
 		},
-		{
-			values: url.Values{
-				"oneof_string_value": {"foobar"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				OneofValue: &examplepb.Proto3Message_OneofStringValue{
-					OneofStringValue: "foobar",
-				},
-			},
-		},
-		{
-			values: url.Values{
-				"oneofStringValue": {"foobar"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				OneofValue: &examplepb.Proto3Message_OneofStringValue{
-					OneofStringValue: "foobar",
-				},
-			},
-		},
-		{
-			values: url.Values{
-				"oneof_bool_value": {"true"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				OneofValue: &examplepb.Proto3Message_OneofBoolValue{
-					OneofBoolValue: true,
-				},
-			},
-		},
+		{values: url.Values{"oneof_string_value": {"foobar"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{OneofValue: &testpb.Proto3Message_OneofStringValue{OneofStringValue: "foobar"}}},
+		{values: url.Values{"oneofStringValue": {"foobar"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{OneofValue: &testpb.Proto3Message_OneofStringValue{OneofStringValue: "foobar"}}},
+		{values: url.Values{"oneof_bool_value": {"true"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{OneofValue: &testpb.Proto3Message_OneofBoolValue{OneofBoolValue: true}}},
 		{
 			values: url.Values{
 				"nested_oneof_value_one.int64Value":   {"-1"},
 				"nested_oneof_value_one.string_value": {"foo"},
 			},
 			filter: utilities.NewDoubleArray(nil),
-			want: &examplepb.Proto3Message{
-				NestedOneofValue: &examplepb.Proto3Message_NestedOneofValueOne{
-					NestedOneofValueOne: &examplepb.Proto3Message{
+			want: &testpb.Proto3Message{
+				NestedOneofValue: &testpb.Proto3Message_NestedOneofValueOne{
+					NestedOneofValueOne: &testpb.Proto3Message{
 						Int64Value:  -1,
 						StringValue: "foo",
 					},
 				},
 			},
 		},
-		{
-			// Error on "null"
-			values: url.Values{
-				"timestampValue": {"null"},
-			},
-			filter:  utilities.NewDoubleArray(nil),
-			want:    &examplepb.Proto3Message{},
-			wanterr: errors.New(`parsing field "timestamp_value": parsing time "null" as "2006-01-02T15:04:05.999999999Z07:00": cannot parse "null" as "2006"`),
-		},
-		{
-			// Error on "null"
-			values: url.Values{
-				"durationValue": {"null"},
-			},
-			filter:  utilities.NewDoubleArray(nil),
-			want:    &examplepb.Proto3Message{},
-			wanterr: errors.New(`parsing field "duration_value": time: invalid duration "null"`),
-		},
-		{
-			// Don't allow setting a oneof more than once
-			values: url.Values{
-				"oneof_bool_value":   {"true"},
-				"oneof_string_value": {"foobar"},
-			},
-			filter:  utilities.NewDoubleArray(nil),
-			want:    &examplepb.Proto3Message{},
-			wanterr: errors.New("field already set for oneof \"oneof_value\""),
-		},
-		{
-			// Don't allow setting a oneof more than once
-			values: url.Values{
-				"nested_oneof_int32_value":          {"10"},
-				"nested_oneof_value_one.int32Value": {"-1"},
-			},
-			filter:  utilities.NewDoubleArray(nil),
-			want:    &examplepb.Proto3Message{},
-			wanterr: errors.New("field already set for oneof \"nested_oneof_value\""),
-		},
-		{
-			// Don't allow setting a oneof more than once
-			values: url.Values{
-				"nested_oneof_value_one.int32Value": {"-1"},
-				"nested_oneof_int32_value":          {"10"},
-			},
-			filter:  utilities.NewDoubleArray(nil),
-			want:    &examplepb.Proto3Message{},
-			wanterr: errors.New("field already set for oneof \"nested_oneof_value\""),
-		},
-		{
-			// Error when there are too many values
-			values: url.Values{
-				"uint64_value": {"1", "2"},
-			},
-			filter:  utilities.NewDoubleArray(nil),
-			want:    &examplepb.Proto3Message{},
-			wanterr: errors.New("too many values for field \"uint64_value\": 1, 2"),
-		},
-		{
-			// Error when dereferencing a list of messages
-			values: url.Values{
-				"repeated_message.value": {"1"},
-			},
-			filter:  utilities.NewDoubleArray(nil),
-			want:    &examplepb.Proto3Message{},
-			wanterr: errors.New("invalid path: \"repeated_message\" is not a message"),
-		},
-		{
-			values: url.Values{
-				"timestampValue": {"0000-01-01T00:00:00.00Z"},
-			},
-			filter:  utilities.NewDoubleArray(nil),
-			want:    &examplepb.Proto3Message{},
-			wanterr: errors.New(`parsing field "timestamp_value": 0000-01-01T00:00:00.00Z before 0001-01-01`),
-		},
+		{values: url.Values{"timestampValue": {"null"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{}, wanterr: errors.New(`parsing field "timestamp_value": parsing time "null" as "2006-01-02T15:04:05.999999999Z07:00": cannot parse "null" as "2006"`)},
+		{values: url.Values{"durationValue": {"null"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{}, wanterr: errors.New(`parsing field "duration_value": time: invalid duration "null"`)},
+		{values: url.Values{"oneof_bool_value": {"true"}, "oneof_string_value": {"foobar"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{}, wanterr: errors.New("field already set for oneof \"oneof_value\"")},
+		{values: url.Values{"nested_oneof_int32_value": {"10"}, "nested_oneof_value_one.int32Value": {"-1"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{}, wanterr: errors.New("field already set for oneof \"nested_oneof_value\"")},
+		{values: url.Values{"nested_oneof_value_one.int32Value": {"-1"}, "nested_oneof_int32_value": {"10"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{}, wanterr: errors.New("field already set for oneof \"nested_oneof_value\"")},
+		{values: url.Values{"uint64_value": {"1", "2"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{}, wanterr: errors.New("too many values for field \"uint64_value\": 1, 2")},
+		{values: url.Values{"repeated_message.value": {"1"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{}, wanterr: errors.New("invalid path: \"repeated_message\" is not a message")},
+		{values: url.Values{"timestampValue": {"0000-01-01T00:00:00.00Z"}}, filter: utilities.NewDoubleArray(nil), want: &testpb.Proto3Message{}, wanterr: errors.New(`parsing field "timestamp_value": 0000-01-01T00:00:00.00Z before 0001-01-01`)},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			msg := spec.want.ProtoReflect().New().Interface()
 			err := PopulateQueryParameters(msg, spec.values, spec.filter)
 			if spec.wanterr != nil {
-				if err == nil || err.Error() != spec.wanterr.Error() {
-					t.Errorf("PopulateQueryParameters(msg, %v, %v) failed with %q; want error %q", spec.values, spec.filter, err, spec.wanterr)
+				assert.Error(t, err)
+				if err != nil {
+					assert.Equal(t, spec.wanterr.Error(), err.Error())
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("PopulateQueryParameters(msg, %v, %v) failed with %v; want success", spec.values, spec.filter, err)
-				return
-			}
-			if diff := cmp.Diff(spec.want, msg, protocmp.Transform()); diff != "" {
-				t.Errorf("PopulateQueryParameters(msg, %v, %v): %s", spec.values, spec.filter, diff)
-			}
+			assert.NoError(t, err, "PopulateQueryParameters(msg, %v, %v)", spec.values, spec.filter)
+			assert.Empty(t, cmp.Diff(spec.want, msg, protocmp.Transform()), "PopulateQueryParameters(msg, %v, %v)", spec.values, spec.filter)
 		})
 	}
 }
@@ -554,79 +427,33 @@ func TestPopulateParametersWithFilters(t *testing.T) {
 		want   proto.Message
 	}{
 		{
-			values: url.Values{
-				"bool_value":     {"true"},
-				"string_value":   {"str"},
-				"repeated_value": {"a", "b", "c"},
-			},
-			filter: utilities.NewDoubleArray([][]string{
-				{"bool_value"}, {"repeated_value"},
-			}),
-			want: &examplepb.Proto3Message{
-				StringValue: "str",
-			},
+			values: url.Values{"bool_value": {"true"}, "string_value": {"str"}, "repeated_value": {"a", "b", "c"}},
+			filter: utilities.NewDoubleArray([][]string{{"bool_value"}, {"repeated_value"}}),
+			want:   &testpb.Proto3Message{StringValue: "str"},
 		},
 		{
-			values: url.Values{
-				"nested.nested.bool_value":   {"true"},
-				"nested.nested.string_value": {"str"},
-				"nested.string_value":        {"str"},
-				"string_value":               {"str"},
-			},
-			filter: utilities.NewDoubleArray([][]string{
-				{"nested"},
-			}),
-			want: &examplepb.Proto3Message{
-				StringValue: "str",
-			},
+			values: url.Values{"nested.nested.bool_value": {"true"}, "nested.nested.string_value": {"str"}, "nested.string_value": {"str"}, "string_value": {"str"}},
+			filter: utilities.NewDoubleArray([][]string{{"nested"}}),
+			want:   &testpb.Proto3Message{StringValue: "str"},
 		},
 		{
-			values: url.Values{
-				"nested.nested.bool_value":   {"true"},
-				"nested.nested.string_value": {"str"},
-				"nested.string_value":        {"str"},
-				"string_value":               {"str"},
-			},
-			filter: utilities.NewDoubleArray([][]string{
-				{"nested", "nested"},
-			}),
-			want: &examplepb.Proto3Message{
-				Nested: &examplepb.Proto3Message{
-					StringValue: "str",
-				},
-				StringValue: "str",
-			},
+			values: url.Values{"nested.nested.bool_value": {"true"}, "nested.nested.string_value": {"str"}, "nested.string_value": {"str"}, "string_value": {"str"}},
+			filter: utilities.NewDoubleArray([][]string{{"nested", "nested"}}),
+			want:   &testpb.Proto3Message{Nested: &testpb.Proto3Message{StringValue: "str"}, StringValue: "str"},
 		},
 		{
-			values: url.Values{
-				"nested.nested.bool_value":   {"true"},
-				"nested.nested.string_value": {"str"},
-				"nested.string_value":        {"str"},
-				"string_value":               {"str"},
-			},
-			filter: utilities.NewDoubleArray([][]string{
-				{"nested", "nested", "string_value"},
-			}),
-			want: &examplepb.Proto3Message{
-				Nested: &examplepb.Proto3Message{
-					StringValue: "str",
-					Nested: &examplepb.Proto3Message{
-						BoolValue: true,
-					},
-				},
+			values: url.Values{"nested.nested.bool_value": {"true"}, "nested.nested.string_value": {"str"}, "nested.string_value": {"str"}, "string_value": {"str"}},
+			filter: utilities.NewDoubleArray([][]string{{"nested", "nested", "string_value"}}),
+			want: &testpb.Proto3Message{
+				Nested:      &testpb.Proto3Message{StringValue: "str", Nested: &testpb.Proto3Message{BoolValue: true}},
 				StringValue: "str",
 			},
 		},
 	} {
 		msg := spec.want.ProtoReflect().New().Interface()
 		err := PopulateQueryParameters(msg, spec.values, spec.filter)
-		if err != nil {
-			t.Errorf("PoplateQueryParameters(msg, %v, %v) failed with %v; want success", spec.values, spec.filter, err)
-			continue
-		}
-		if got, want := msg, spec.want; !proto.Equal(got, want) {
-			t.Errorf("PopulateQueryParameters(msg, %v, %v = %v; want %v", spec.values, spec.filter, got, want)
-		}
+		assert.NoError(t, err, "PopulateQueryParameters(msg, %v, %v)", spec.values, spec.filter)
+		assert.True(t, proto.Equal(msg, spec.want), "PopulateQueryParameters(msg, %v, %v) = %v; want %v", spec.values, spec.filter, msg, spec.want)
 	}
 }
 
@@ -636,95 +463,20 @@ func TestPopulateQueryParametersWithInvalidNestedParameters(t *testing.T) {
 		values url.Values
 		filter *utilities.DoubleArray
 	}{
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"float_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"double_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"int64_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"int32_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"uint64_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"uint32_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"bool_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"string_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"repeated_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"enum_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"enum_value.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
-		{
-			msg: &examplepb.Proto3Message{},
-			values: url.Values{
-				"repeated_enum.nested": {"test"},
-			},
-			filter: utilities.NewDoubleArray(nil),
-		},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"float_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"double_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"int64_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"int32_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"uint64_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"uint32_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"bool_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"string_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"repeated_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"enum_value.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
+		{msg: &testpb.Proto3Message{}, values: url.Values{"repeated_enum.nested": {"test"}}, filter: utilities.NewDoubleArray(nil)},
 	} {
 		spec.msg = spec.msg.ProtoReflect().New().Interface()
 		err := PopulateQueryParameters(spec.msg, spec.values, spec.filter)
-		if err == nil {
-			t.Errorf("PopulateQueryParameters(msg, %v, %v) did not fail; want error", spec.values, spec.filter)
-		}
+		assert.Error(t, err, "PopulateQueryParameters(msg, %v, %v) did not fail; want error", spec.values, spec.filter)
 	}
 }

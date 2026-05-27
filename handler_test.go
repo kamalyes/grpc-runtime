@@ -5,11 +5,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"sort"
 	"testing"
 
-	pb "github.com/kamalyes/grpc-runtime/internal/examplepb"
+	"github.com/kamalyes/grpc-runtime/testpb"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -22,7 +22,7 @@ type fakeResponseBodyWrapper struct {
 
 // XXX_ResponseBody returns id of SimpleMessage
 func (r fakeResponseBodyWrapper) XXX_ResponseBody() interface{} {
-	resp := r.Message.(*pb.SimpleMessage)
+	resp := r.Message.(*testpb.SimpleMessage)
 	return resp.Id
 }
 
@@ -36,44 +36,14 @@ func TestForwardResponseStream(t *testing.T) {
 		msgs         []msg
 		statusCode   int
 		responseBody bool
-	}{{
-		name: "encoding",
-		msgs: []msg{
-			{&pb.SimpleMessage{Id: "One"}, nil},
-			{&pb.SimpleMessage{Id: "Two"}, nil},
-		},
-		statusCode: http.StatusOK,
-	}, {
-		name:       "empty",
-		statusCode: http.StatusOK,
-	}, {
-		name:       "error",
-		msgs:       []msg{{nil, status.Errorf(codes.OutOfRange, "400")}},
-		statusCode: http.StatusBadRequest,
-	}, {
-		name: "stream_error",
-		msgs: []msg{
-			{&pb.SimpleMessage{Id: "One"}, nil},
-			{nil, status.Errorf(codes.OutOfRange, "400")},
-		},
-		statusCode: http.StatusOK,
-	}, {
-		name: "response body stream case",
-		msgs: []msg{
-			{fakeResponseBodyWrapper{&pb.SimpleMessage{Id: "One"}}, nil},
-			{fakeResponseBodyWrapper{&pb.SimpleMessage{Id: "Two"}}, nil},
-		},
-		responseBody: true,
-		statusCode:   http.StatusOK,
-	}, {
-		name: "response body stream error case",
-		msgs: []msg{
-			{fakeResponseBodyWrapper{&pb.SimpleMessage{Id: "One"}}, nil},
-			{nil, status.Errorf(codes.OutOfRange, "400")},
-		},
-		responseBody: true,
-		statusCode:   http.StatusOK,
-	}}
+	}{
+		{name: "encoding", msgs: []msg{{&testpb.SimpleMessage{Id: "One"}, nil}, {&testpb.SimpleMessage{Id: "Two"}, nil}}, statusCode: http.StatusOK},
+		{name: "empty", statusCode: http.StatusOK},
+		{name: "error", msgs: []msg{{nil, status.Errorf(codes.OutOfRange, "400")}}, statusCode: http.StatusBadRequest},
+		{name: "stream_error", msgs: []msg{{&testpb.SimpleMessage{Id: "One"}, nil}, {nil, status.Errorf(codes.OutOfRange, "400")}}, statusCode: http.StatusOK},
+		{name: "response body stream case", msgs: []msg{{fakeResponseBodyWrapper{&testpb.SimpleMessage{Id: "One"}}, nil}, {fakeResponseBodyWrapper{&testpb.SimpleMessage{Id: "Two"}}, nil}}, responseBody: true, statusCode: http.StatusOK},
+		{name: "response body stream error case", msgs: []msg{{fakeResponseBodyWrapper{&testpb.SimpleMessage{Id: "One"}}, nil}, {nil, status.Errorf(codes.OutOfRange, "400")}}, responseBody: true, statusCode: http.StatusOK},
+	}
 
 	newTestRecv := func(t *testing.T, msgs []msg) func() (proto.Message, error) {
 		var count int
@@ -81,7 +51,7 @@ func TestForwardResponseStream(t *testing.T) {
 			if count == len(msgs) {
 				return nil, io.EOF
 			} else if count > len(msgs) {
-				t.Errorf("recv() called %d times for %d messages", count, len(msgs))
+				assert.Failf(t, "recv called too many times", "recv() called %d times for %d messages", count, len(msgs))
 			}
 			count++
 			msg := msgs[count-1]
@@ -99,74 +69,49 @@ func TestForwardResponseStream(t *testing.T) {
 			ForwardResponseStream(ctx, NewServeMux(), marshaler, resp, req, recv)
 
 			w := resp.Result()
-			if w.StatusCode != tt.statusCode {
-				t.Errorf("StatusCode %d want %d", w.StatusCode, tt.statusCode)
-			}
-			if h := w.Header.Get("Transfer-Encoding"); h != "chunked" {
-				t.Errorf("ForwardResponseStream missing header chunked")
-			}
+			assert.Equal(t, tt.statusCode, w.StatusCode, "StatusCode mismatch")
+			assert.Equal(t, "chunked", w.Header.Get("Transfer-Encoding"), "ForwardResponseStream missing header chunked")
 			body, err := io.ReadAll(w.Body)
-			if err != nil {
-				t.Errorf("Failed to read response body with %v", err)
-			}
+			assert.NoError(t, err, "Failed to read response body")
 			w.Body.Close()
-			if len(body) > 0 && w.Header.Get("Content-Type") != "application/json" {
-				t.Errorf("Content-Type %s want application/json", w.Header.Get("Content-Type"))
+			if len(body) > 0 {
+				assert.Equal(t, "application/json", w.Header.Get("Content-Type"), "Content-Type mismatch")
 			}
 
 			var want []byte
 			for i, msg := range tt.msgs {
 				if msg.err != nil {
 					if i == 0 {
-						// Skip non-stream errors
 						t.Skip("checking error encodings")
 					}
 					delimiter := marshaler.Delimiter()
 					st := status.Convert(msg.err)
-					b, err := marshaler.Marshal(map[string]proto.Message{
-						"error": st.Proto(),
-					})
-					if err != nil {
-						t.Errorf("marshaler.Marshal() failed %v", err)
-					}
+					b, err := marshaler.Marshal(map[string]proto.Message{"error": st.Proto()})
+					assert.NoError(t, err, "marshaler.Marshal() failed")
 					errBytes := body[len(want):]
-					if string(errBytes) != string(b)+string(delimiter) {
-						t.Errorf("ForwardResponseStream() = \"%s\" want \"%s\"", errBytes, b)
-					}
-
+					assert.Equal(t, string(b)+string(delimiter), string(errBytes), "ForwardResponseStream error mismatch")
 					return
 				}
 
 				var b []byte
-
 				if tt.responseBody {
-					// responseBody interface is in runtime package and test is in runtime_test package. hence can't use responseBody directly
-					// So type casting to fakeResponseBodyWrapper struct to verify the data.
 					rb, ok := msg.pb.(fakeResponseBodyWrapper)
-					if !ok {
-						t.Errorf("stream responseBody failed %v", err)
-					}
-
+					assert.True(t, ok, "stream responseBody failed")
 					b, err = marshaler.Marshal(map[string]interface{}{"result": rb.XXX_ResponseBody()})
 				} else {
 					b, err = marshaler.Marshal(map[string]interface{}{"result": msg.pb})
 				}
-
-				if err != nil {
-					t.Errorf("marshaler.Marshal() failed %v", err)
-				}
+				assert.NoError(t, err, "marshaler.Marshal() failed")
 				want = append(want, b...)
 				want = append(want, marshaler.Delimiter()...)
 			}
 
-			if string(body) != string(want) {
-				t.Errorf("ForwardResponseStream() = \"%s\" want \"%s\"", body, want)
-			}
+			assert.Equal(t, string(want), string(body), "ForwardResponseStream body mismatch")
 		})
 	}
 }
 
-// A custom marshaler implementation, that doesn't implement the delimited interface
+// CustomMarshaler 不实现 delimited 接口的自定义序列化器
 type CustomMarshaler struct {
 	m *JSONPb
 }
@@ -177,7 +122,7 @@ func (c *CustomMarshaler) NewDecoder(r io.Reader) Decoder             { return c
 func (c *CustomMarshaler) NewEncoder(w io.Writer) Encoder             { return c.m.NewEncoder(w) }
 func (c *CustomMarshaler) ContentType(v interface{}) string           { return "Custom-Content-Type" }
 
-// marshalerStreamContentType implements Marshaler, but with the addition of a custom StreamContentType.
+// marshalerStreamContentType 实现了自定义 StreamContentType 的 Marshaler
 type marshalerStreamContentType struct {
 	Marshaler
 	CustomStreamContentType string
@@ -200,46 +145,13 @@ func TestForwardResponseStreamCustomMarshaler(t *testing.T) {
 		msgs            []msg
 		statusCode      int
 		wantContentType string
-	}{{
-		name:      "encoding",
-		marshaler: marshaler,
-		msgs: []msg{
-			{&pb.SimpleMessage{Id: "One"}, nil},
-			{&pb.SimpleMessage{Id: "Two"}, nil},
-		},
-		statusCode:      http.StatusOK,
-		wantContentType: "Custom-Content-Type",
-	}, {
-		name:       "empty",
-		marshaler:  marshaler,
-		statusCode: http.StatusOK,
-	}, {
-		name:            "error",
-		marshaler:       marshaler,
-		msgs:            []msg{{nil, status.Errorf(codes.OutOfRange, "400")}},
-		statusCode:      http.StatusBadRequest,
-		wantContentType: "Custom-Content-Type",
-	}, {
-		name:      "stream_error",
-		marshaler: marshaler,
-		msgs: []msg{
-			{&pb.SimpleMessage{Id: "One"}, nil},
-			{nil, status.Errorf(codes.OutOfRange, "400")},
-		},
-		statusCode:      http.StatusOK,
-		wantContentType: "Custom-Content-Type",
-	}, {
-		name: "stream_content_type",
-		marshaler: marshalerStreamContentType{
-			Marshaler:               marshaler,
-			CustomStreamContentType: "Stream-Content-Type",
-		},
-		msgs: []msg{
-			{&pb.SimpleMessage{Id: "One"}, nil},
-		},
-		statusCode:      http.StatusOK,
-		wantContentType: "Stream-Content-Type",
-	}}
+	}{
+		{name: "encoding", marshaler: marshaler, msgs: []msg{{&testpb.SimpleMessage{Id: "One"}, nil}, {&testpb.SimpleMessage{Id: "Two"}, nil}}, statusCode: http.StatusOK, wantContentType: "Custom-Content-Type"},
+		{name: "empty", marshaler: marshaler, statusCode: http.StatusOK},
+		{name: "error", marshaler: marshaler, msgs: []msg{{nil, status.Errorf(codes.OutOfRange, "400")}}, statusCode: http.StatusBadRequest, wantContentType: "Custom-Content-Type"},
+		{name: "stream_error", marshaler: marshaler, msgs: []msg{{&testpb.SimpleMessage{Id: "One"}, nil}, {nil, status.Errorf(codes.OutOfRange, "400")}}, statusCode: http.StatusOK, wantContentType: "Custom-Content-Type"},
+		{name: "stream_content_type", marshaler: marshalerStreamContentType{Marshaler: marshaler, CustomStreamContentType: "Stream-Content-Type"}, msgs: []msg{{&testpb.SimpleMessage{Id: "One"}, nil}}, statusCode: http.StatusOK, wantContentType: "Stream-Content-Type"},
+	}
 
 	newTestRecv := func(t *testing.T, msgs []msg) func() (proto.Message, error) {
 		var count int
@@ -247,7 +159,7 @@ func TestForwardResponseStreamCustomMarshaler(t *testing.T) {
 			if count == len(msgs) {
 				return nil, io.EOF
 			} else if count > len(msgs) {
-				t.Errorf("recv() called %d times for %d messages", count, len(msgs))
+				assert.Failf(t, "recv called too many times", "recv() called %d times for %d messages", count, len(msgs))
 			}
 			count++
 			msg := msgs[count-1]
@@ -264,20 +176,12 @@ func TestForwardResponseStreamCustomMarshaler(t *testing.T) {
 			ForwardResponseStream(ctx, NewServeMux(), tt.marshaler, resp, req, recv)
 
 			w := resp.Result()
-			if w.StatusCode != tt.statusCode {
-				t.Errorf("StatusCode %d want %d", w.StatusCode, tt.statusCode)
-			}
-			if h := w.Header.Get("Transfer-Encoding"); h != "chunked" {
-				t.Errorf("ForwardResponseStream missing header chunked")
-			}
+			assert.Equal(t, tt.statusCode, w.StatusCode, "StatusCode mismatch")
+			assert.Equal(t, "chunked", w.Header.Get("Transfer-Encoding"), "ForwardResponseStream missing header chunked")
 			body, err := io.ReadAll(w.Body)
-			if err != nil {
-				t.Errorf("Failed to read response body with %v", err)
-			}
+			assert.NoError(t, err, "Failed to read response body")
 			w.Body.Close()
-			if w.Header.Get("Content-Type") != tt.wantContentType {
-				t.Errorf("Content-Type %q want %q", w.Header.Get("Content-Type"), tt.wantContentType)
-			}
+			assert.Equal(t, tt.wantContentType, w.Header.Get("Content-Type"), "Content-Type mismatch")
 
 			var want []byte
 			for _, msg := range tt.msgs {
@@ -285,54 +189,40 @@ func TestForwardResponseStreamCustomMarshaler(t *testing.T) {
 					t.Skip("checking error encodings")
 				}
 				b, err := tt.marshaler.Marshal(map[string]proto.Message{"result": msg.pb})
-				if err != nil {
-					t.Errorf("marshaler.Marshal() failed %v", err)
-				}
+				assert.NoError(t, err, "marshaler.Marshal() failed")
 				want = append(want, b...)
 				want = append(want, "\n"...)
 			}
 
-			if string(body) != string(want) {
-				t.Errorf("ForwardResponseStream() = \"%s\" want \"%s\"", body, want)
-			}
+			assert.Equal(t, string(want), string(body), "ForwardResponseStream body mismatch")
 		})
 	}
 }
 
 func TestForwardResponseMessage(t *testing.T) {
-	msg := &pb.SimpleMessage{Id: "One"}
+	msg := &testpb.SimpleMessage{Id: "One"}
 	tests := []struct {
 		name              string
 		marshaler         Marshaler
 		contentType       string
 		frw               ForwardResponseRewriter
 		getWantedResponse func(msg any) ([]byte, error)
-	}{{
-		name:        "standard marshaler",
-		marshaler:   &JSONPb{},
-		contentType: "application/json",
-	}, {
-		name:        "httpbody marshaler",
-		marshaler:   &HTTPBodyMarshaler{&JSONPb{}},
-		contentType: "application/json",
-	}, {
-		name:        "custom marshaler",
-		marshaler:   &CustomMarshaler{&JSONPb{}},
-		contentType: "Custom-Content-Type",
-	}, {
-		name:        "custom forward response rewriter",
-		marshaler:   &JSONPb{},
-		contentType: "application/json",
-		frw: func(ctx context.Context, response proto.Message) (any, error) {
-			return map[string]any{
-				"ok":   true,
-				"data": response,
-			}, nil
+	}{
+		{name: "standard marshaler", marshaler: &JSONPb{}, contentType: "application/json"},
+		{name: "httpbody marshaler", marshaler: &HTTPBodyMarshaler{&JSONPb{}}, contentType: "application/json"},
+		{name: "custom marshaler", marshaler: &CustomMarshaler{&JSONPb{}}, contentType: "Custom-Content-Type"},
+		{
+			name:        "custom forward response rewriter",
+			marshaler:   &JSONPb{},
+			contentType: "application/json",
+			frw: func(ctx context.Context, response proto.Message) (any, error) {
+				return map[string]any{"ok": true, "data": response}, nil
+			},
+			getWantedResponse: func(msg any) ([]byte, error) {
+				return new(JSONPb).Marshal(map[string]any{"ok": true, "data": msg})
+			},
 		},
-		getWantedResponse: func(msg any) ([]byte, error) {
-			return new(JSONPb).Marshal(map[string]any{"ok": true, "data": msg})
-		},
-	}}
+	}
 
 	ctx := NewServerMetadataContext(context.Background(), ServerMetadata{})
 	for _, tt := range tests {
@@ -348,36 +238,25 @@ func TestForwardResponseMessage(t *testing.T) {
 			ForwardResponseMessage(ctx, NewServeMux(opts...), tt.marshaler, resp, req, msg)
 
 			w := resp.Result()
-			if w.StatusCode != http.StatusOK {
-				t.Errorf("StatusCode %d want %d", w.StatusCode, http.StatusOK)
-			}
-			if h := w.Header.Get("Content-Type"); h != tt.contentType {
-				t.Errorf("Content-Type %v want %v", h, tt.contentType)
-			}
+			assert.Equal(t, http.StatusOK, w.StatusCode, "StatusCode mismatch")
+			assert.Equal(t, tt.contentType, w.Header.Get("Content-Type"), "Content-Type mismatch")
 			body, err := io.ReadAll(w.Body)
-			if err != nil {
-				t.Errorf("Failed to read response body with %v", err)
-			}
+			assert.NoError(t, err, "Failed to read response body")
 			w.Body.Close()
 
 			if tt.getWantedResponse == nil {
 				tt.getWantedResponse = tt.marshaler.Marshal
 			}
 			want, err := tt.getWantedResponse(msg)
-			if err != nil {
-				t.Errorf("marshaler.Marshal() failed %v", err)
-			}
-
-			if string(body) != string(want) {
-				t.Errorf("ForwardResponseMessage() = \"%s\" want \"%s\"", body, want)
-			}
+			assert.NoError(t, err, "marshaler.Marshal() failed")
+			assert.Equal(t, string(want), string(body), "ForwardResponseMessage body mismatch")
 		})
 	}
 }
 
 func TestOutgoingHeaderMatcher(t *testing.T) {
 	t.Parallel()
-	msg := &pb.SimpleMessage{Id: "foo"}
+	msg := &testpb.SimpleMessage{Id: "foo"}
 	for _, tc := range []struct {
 		name    string
 		md      ServerMetadata
@@ -385,38 +264,19 @@ func TestOutgoingHeaderMatcher(t *testing.T) {
 		matcher HeaderMatcherFunc
 	}{
 		{
-			name: "default matcher",
-			md: ServerMetadata{
-				HeaderMD: metadata.Pairs(
-					"foo", "bar",
-					"baz", "qux",
-				),
-			},
-			headers: http.Header{
-				"Content-Type":      []string{"application/json"},
-				"Grpc-Metadata-Foo": []string{"bar"},
-				"Grpc-Metadata-Baz": []string{"qux"},
-			},
+			name:    "default matcher",
+			md:      ServerMetadata{HeaderMD: metadata.Pairs("foo", "bar", "baz", "qux")},
+			headers: http.Header{"Content-Type": []string{"application/json"}, "Grpc-Metadata-Foo": []string{"bar"}, "Grpc-Metadata-Baz": []string{"qux"}},
 		},
 		{
-			name: "custom matcher",
-			md: ServerMetadata{
-				HeaderMD: metadata.Pairs(
-					"foo", "bar",
-					"baz", "qux",
-				),
-			},
-			headers: http.Header{
-				"Content-Type": []string{"application/json"},
-				"Custom-Foo":   []string{"bar"},
-			},
+			name:    "custom matcher",
+			md:      ServerMetadata{HeaderMD: metadata.Pairs("foo", "bar", "baz", "qux")},
+			headers: http.Header{"Content-Type": []string{"application/json"}, "Custom-Foo": []string{"bar"}},
 			matcher: func(key string) (string, bool) {
-				switch key {
-				case "foo":
+				if key == "foo" {
 					return "custom-foo", true
-				default:
-					return "", false
 				}
+				return "", false
 			},
 		},
 	} {
@@ -428,27 +288,20 @@ func TestOutgoingHeaderMatcher(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://example.com/foo", nil)
 			resp := httptest.NewRecorder()
 
-			mux := NewServeMux(
-				WithOutgoingHeaderMatcher(tc.matcher),
-			)
+			mux := NewServeMux(WithOutgoingHeaderMatcher(tc.matcher))
 			ForwardResponseMessage(ctx, mux, &JSONPb{}, resp, req, msg)
 
 			w := resp.Result()
 			defer w.Body.Close()
-			if w.StatusCode != http.StatusOK {
-				t.Fatalf("StatusCode %d want %d", w.StatusCode, http.StatusOK)
-			}
-
-			if !reflect.DeepEqual(w.Header, tc.headers) {
-				t.Fatalf("Header %v want %v", w.Header, tc.headers)
-			}
+			assert.Equal(t, http.StatusOK, w.StatusCode, "StatusCode mismatch")
+			assert.Equal(t, tc.headers, w.Header, "Header mismatch")
 		})
 	}
 }
 
 func TestOutgoingHeaderMatcherWithContentLength(t *testing.T) {
 	t.Parallel()
-	msg := &pb.SimpleMessage{Id: "foo"}
+	msg := &testpb.SimpleMessage{Id: "foo"}
 	for _, tc := range []struct {
 		name    string
 		md      ServerMetadata
@@ -456,40 +309,19 @@ func TestOutgoingHeaderMatcherWithContentLength(t *testing.T) {
 		matcher HeaderMatcherFunc
 	}{
 		{
-			name: "default matcher",
-			md: ServerMetadata{
-				HeaderMD: metadata.Pairs(
-					"foo", "bar",
-					"baz", "qux",
-				),
-			},
-			headers: http.Header{
-				"Content-Length":    []string{"12"},
-				"Content-Type":      []string{"application/json"},
-				"Grpc-Metadata-Foo": []string{"bar"},
-				"Grpc-Metadata-Baz": []string{"qux"},
-			},
+			name:    "default matcher",
+			md:      ServerMetadata{HeaderMD: metadata.Pairs("foo", "bar", "baz", "qux")},
+			headers: http.Header{"Content-Length": []string{"12"}, "Content-Type": []string{"application/json"}, "Grpc-Metadata-Foo": []string{"bar"}, "Grpc-Metadata-Baz": []string{"qux"}},
 		},
 		{
-			name: "custom matcher",
-			md: ServerMetadata{
-				HeaderMD: metadata.Pairs(
-					"foo", "bar",
-					"baz", "qux",
-				),
-			},
-			headers: http.Header{
-				"Content-Length": []string{"12"},
-				"Content-Type":   []string{"application/json"},
-				"Custom-Foo":     []string{"bar"},
-			},
+			name:    "custom matcher",
+			md:      ServerMetadata{HeaderMD: metadata.Pairs("foo", "bar", "baz", "qux")},
+			headers: http.Header{"Content-Length": []string{"12"}, "Content-Type": []string{"application/json"}, "Custom-Foo": []string{"bar"}},
 			matcher: func(key string) (string, bool) {
-				switch key {
-				case "foo":
+				if key == "foo" {
 					return "custom-foo", true
-				default:
-					return "", false
 				}
+				return "", false
 			},
 		},
 	} {
@@ -501,28 +333,20 @@ func TestOutgoingHeaderMatcherWithContentLength(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://example.com/foo", nil)
 			resp := httptest.NewRecorder()
 
-			mux := NewServeMux(
-				WithOutgoingHeaderMatcher(tc.matcher),
-				WithWriteContentLength(),
-			)
+			mux := NewServeMux(WithOutgoingHeaderMatcher(tc.matcher), WithWriteContentLength())
 			ForwardResponseMessage(ctx, mux, &JSONPb{}, resp, req, msg)
 
 			w := resp.Result()
 			defer w.Body.Close()
-			if w.StatusCode != http.StatusOK {
-				t.Fatalf("StatusCode %d want %d", w.StatusCode, http.StatusOK)
-			}
-
-			if !reflect.DeepEqual(w.Header, tc.headers) {
-				t.Fatalf("Header %v want %v", w.Header, tc.headers)
-			}
+			assert.Equal(t, http.StatusOK, w.StatusCode, "StatusCode mismatch")
+			assert.Equal(t, tc.headers, w.Header, "Header mismatch")
 		})
 	}
 }
 
 func TestOutgoingTrailerMatcher(t *testing.T) {
 	t.Parallel()
-	msg := &pb.SimpleMessage{Id: "foo"}
+	msg := &testpb.SimpleMessage{Id: "foo"}
 	for _, tc := range []struct {
 		name    string
 		md      ServerMetadata
@@ -532,65 +356,28 @@ func TestOutgoingTrailerMatcher(t *testing.T) {
 		matcher HeaderMatcherFunc
 	}{
 		{
-			name: "default matcher, caller accepts",
-			md: ServerMetadata{
-				TrailerMD: metadata.Pairs(
-					"foo", "bar",
-					"baz", "qux",
-				),
-			},
-			caller: http.Header{
-				"Te": []string{"trailers"},
-			},
-			headers: http.Header{
-				"Transfer-Encoding": []string{"chunked"},
-				"Content-Type":      []string{"application/json"},
-				"Trailer":           []string{"Grpc-Trailer-Baz", "Grpc-Trailer-Foo"},
-			},
-			trailer: http.Header{
-				"Grpc-Trailer-Foo": []string{"bar"},
-				"Grpc-Trailer-Baz": []string{"qux"},
-			},
+			name:    "default matcher, caller accepts",
+			md:      ServerMetadata{TrailerMD: metadata.Pairs("foo", "bar", "baz", "qux")},
+			caller:  http.Header{"Te": []string{"trailers"}},
+			headers: http.Header{"Transfer-Encoding": []string{"chunked"}, "Content-Type": []string{"application/json"}, "Trailer": []string{"Grpc-Trailer-Baz", "Grpc-Trailer-Foo"}},
+			trailer: http.Header{"Grpc-Trailer-Foo": []string{"bar"}, "Grpc-Trailer-Baz": []string{"qux"}},
 		},
 		{
-			name: "default matcher, caller rejects",
-			md: ServerMetadata{
-				TrailerMD: metadata.Pairs(
-					"foo", "bar",
-					"baz", "qux",
-				),
-			},
-			headers: http.Header{
-				"Content-Length": []string{"12"},
-				"Content-Type":   []string{"application/json"},
-			},
+			name:    "default matcher, caller rejects",
+			md:      ServerMetadata{TrailerMD: metadata.Pairs("foo", "bar", "baz", "qux")},
+			headers: http.Header{"Content-Length": []string{"12"}, "Content-Type": []string{"application/json"}},
 		},
 		{
-			name: "custom matcher",
-			md: ServerMetadata{
-				TrailerMD: metadata.Pairs(
-					"foo", "bar",
-					"baz", "qux",
-				),
-			},
-			caller: http.Header{
-				"Te": []string{"trailers"},
-			},
-			headers: http.Header{
-				"Transfer-Encoding": []string{"chunked"},
-				"Content-Type":      []string{"application/json"},
-				"Trailer":           []string{"Custom-Trailer-Foo"},
-			},
-			trailer: http.Header{
-				"Custom-Trailer-Foo": []string{"bar"},
-			},
+			name:    "custom matcher",
+			md:      ServerMetadata{TrailerMD: metadata.Pairs("foo", "bar", "baz", "qux")},
+			caller:  http.Header{"Te": []string{"trailers"}},
+			headers: http.Header{"Transfer-Encoding": []string{"chunked"}, "Content-Type": []string{"application/json"}, "Trailer": []string{"Custom-Trailer-Foo"}},
+			trailer: http.Header{"Custom-Trailer-Foo": []string{"bar"}},
 			matcher: func(key string) (string, bool) {
-				switch key {
-				case "foo":
+				if key == "foo" {
 					return "custom-trailer-foo", true
-				default:
-					return "", false
 				}
+				return "", false
 			},
 		},
 	} {
@@ -603,29 +390,17 @@ func TestOutgoingTrailerMatcher(t *testing.T) {
 			req.Header = tc.caller
 			resp := httptest.NewRecorder()
 
-			mux := NewServeMux(
-				WithOutgoingTrailerMatcher(tc.matcher),
-				WithWriteContentLength(),
-			)
+			mux := NewServeMux(WithOutgoingTrailerMatcher(tc.matcher), WithWriteContentLength())
 			ForwardResponseMessage(ctx, mux, &JSONPb{}, resp, req, msg)
 
 			w := resp.Result()
 			_, _ = io.Copy(io.Discard, w.Body)
 			defer w.Body.Close()
-			if w.StatusCode != http.StatusOK {
-				t.Fatalf("StatusCode %d want %d", w.StatusCode, http.StatusOK)
-			}
+			assert.Equal(t, http.StatusOK, w.StatusCode, "StatusCode mismatch")
 
-			// Sort to the trailer headers to ensure the test is deterministic
 			sort.Strings(w.Header["Trailer"])
-
-			if !reflect.DeepEqual(w.Header, tc.headers) {
-				t.Fatalf("Header %v want %v", w.Header, tc.headers)
-			}
-
-			if !reflect.DeepEqual(w.Trailer, tc.trailer) {
-				t.Fatalf("Trailer %v want %v", w.Trailer, tc.trailer)
-			}
+			assert.Equal(t, tc.headers, w.Header, "Header mismatch")
+			assert.Equal(t, tc.trailer, w.Trailer, "Trailer mismatch")
 		})
 	}
 }

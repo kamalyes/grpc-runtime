@@ -1,20 +1,31 @@
+/*
+ * @Author: kamalyes 501893067@qq.com
+ * @Date: 2025-05-25 00:00:00
+ * @LastEditors: kamalyes 501893067@qq.com
+ * @LastEditTime: 2026-05-28 02:00:00
+ * @FilePath: \grpc-runtime\utilities\trie.go
+ * @Description: Double Array trie 实现，用于路径前缀匹配
+ *
+ * Copyright (c) 2025 by kamalyes, All Rights Reserved.
+ */
+
 package utilities
 
 import (
 	"sort"
 )
 
-// DoubleArray is a Double Array implementation of trie on sequences of strings.
+// DoubleArray 基于 Double Array 的字符串序列 trie 实现
 type DoubleArray struct {
-	// Encoding keeps an encoding from string to int
+	// Encoding 字符串到整数的编码映射
 	Encoding map[string]int
-	// Base is the base array of Double Array
+	// Base Double Array 的 base 数组
 	Base []int
-	// Check is the check array of Double Array
+	// Check Double Array 的 check 数组
 	Check []int
 }
 
-// NewDoubleArray builds a DoubleArray from a set of sequences of strings.
+// NewDoubleArray 从字符串序列集合构建 DoubleArray
 func NewDoubleArray(seqs [][]string) *DoubleArray {
 	da := &DoubleArray{Encoding: make(map[string]int)}
 	if len(seqs) == 0 {
@@ -148,7 +159,7 @@ func (l byLex) Less(i, j int) bool {
 	return k < len(sj)
 }
 
-// HasCommonPrefix determines if any sequence in the DoubleArray is a prefix of the given sequence.
+// HasCommonPrefix 判断 DoubleArray 中是否有序列是给定序列的前缀
 func (da *DoubleArray) HasCommonPrefix(seq []string) bool {
 	if len(da.Base) == 0 {
 		return false

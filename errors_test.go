@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
@@ -93,7 +94,7 @@ func TestDefaultHTTPError(t *testing.T) {
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequestWithContext(ctx, "", "", nil) // Pass in an empty request to match the signature
+			req, _ := http.NewRequestWithContext(ctx, "", "", nil)
 
 			opts := []ServeMuxOption{}
 			if spec.fordwardRespRewriter != nil {
@@ -103,31 +104,17 @@ func TestDefaultHTTPError(t *testing.T) {
 
 			HTTPError(ctx, mux, spec.marshaler, w, req, spec.err)
 
-			if got, want := w.Header().Get("Content-Type"), spec.contentType; got != want {
-				t.Errorf(`w.Header().Get("Content-Type") = %q; want %q; on spec.err=%v`, got, want, spec.err)
-			}
-			if got, want := w.Code, spec.status; got != want {
-				t.Errorf("w.Code = %d; want %d", got, want)
-			}
+			assert.Equal(t, spec.contentType, w.Header().Get("Content-Type"))
+			assert.Equal(t, spec.status, w.Code)
 
 			var st statuspb.Status
-			if err := spec.marshaler.Unmarshal(w.Body.Bytes(), &st); err != nil {
-				t.Errorf("marshaler.Unmarshal(%q, &body) failed with %v; want success", w.Body.Bytes(), err)
-				return
-			}
-
-			if got, want := st.Message, spec.msg; !strings.Contains(got, want) {
-				t.Errorf(`st.Message = %q; want %q; on spec.err=%v`, got, want, spec.err)
-			}
+			err := spec.marshaler.Unmarshal(w.Body.Bytes(), &st)
+			assert.NoError(t, err)
+			assert.True(t, strings.Contains(st.Message, spec.msg), "st.Message = %q, want to contain %q", st.Message, spec.msg)
 
 			if spec.details != "" {
-				if len(st.Details) != 1 {
-					t.Errorf(`len(st.Details) = %v; want 1`, len(st.Details))
-					return
-				}
-				if st.Details[0].TypeUrl != spec.details {
-					t.Errorf(`details.type_url = %s; want %s`, st.Details[0].TypeUrl, spec.details)
-				}
+				assert.Len(t, st.Details, 1)
+				assert.Equal(t, spec.details, st.Details[0].TypeUrl)
 			}
 		})
 	}
@@ -167,17 +154,9 @@ func TestHTTPStreamError(t *testing.T) {
 
 			HTTPStreamError(ctx, mux, marshaler, w, r, tc.err)
 
-			if w.Code != http.StatusOK {
-				t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
-			}
-
-			if !proto.Equal(status.Convert(tc.err).Proto(), tc.expectedStatus.Proto()) {
-				t.Errorf("Expected status %v, got %v", tc.expectedStatus, status.Convert(tc.err))
-			}
-
-			if !bytes.Equal(w.Body.Bytes(), tc.expectedResponse) {
-				t.Errorf("Expected response %s, got %s", tc.expectedResponse, w.Body.Bytes())
-			}
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.True(t, proto.Equal(status.Convert(tc.err).Proto(), tc.expectedStatus.Proto()), "expected %v, got %v", tc.expectedStatus, status.Convert(tc.err))
+			assert.True(t, bytes.Equal(w.Body.Bytes(), tc.expectedResponse), "expected %s, got %s", tc.expectedResponse, w.Body.Bytes())
 		})
 	}
 }

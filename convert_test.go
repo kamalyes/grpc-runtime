@@ -3,6 +3,7 @@ package runtime
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -56,18 +57,11 @@ func TestConvertTimestamp(t *testing.T) {
 	for _, spec := range specs {
 		t.Run(spec.name, func(t *testing.T) {
 			ts, err := Timestamp(spec.input)
-			switch {
-			case err != nil && !spec.wanterr:
-				t.Errorf("got unexpected error\n%#v", err)
-			case err == nil && spec.wanterr:
-				t.Errorf("did not error when expected")
-			case !proto.Equal(ts, spec.output):
-				t.Errorf(
-					"when testing %s; got\n%#v\nexpected\n%#v",
-					spec.name,
-					ts,
-					spec.output,
-				)
+			if spec.wanterr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.True(t, proto.Equal(ts, spec.output), "got %#v, want %#v", ts, spec.output)
 			}
 		})
 	}
@@ -121,18 +115,11 @@ func TestConvertDuration(t *testing.T) {
 	for _, spec := range specs {
 		t.Run(spec.name, func(t *testing.T) {
 			ts, err := Duration(spec.input)
-			switch {
-			case err != nil && !spec.wanterr:
-				t.Errorf("got unexpected error\n%#v", err)
-			case err == nil && spec.wanterr:
-				t.Errorf("did not error when expected")
-			case !proto.Equal(ts, spec.output):
-				t.Errorf(
-					"when testing %s; got\n%#v\nexpected\n%#v",
-					spec.name,
-					ts,
-					spec.output,
-				)
+			if spec.wanterr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.True(t, proto.Equal(ts, spec.output), "got %#v, want %#v", ts, spec.output)
 			}
 		})
 	}

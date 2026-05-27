@@ -1,22 +1,33 @@
+/*
+ * @Author: kamalyes 501893067@qq.com
+ * @Date: 2025-05-25 00:00:00
+ * @LastEditors: kamalyes 501893067@qq.com
+ * @LastEditTime: 2026-05-28 02:00:00
+ * @FilePath: \grpc-runtime\utilities\pattern.go
+ * @Description: 路径模式操作码定义
+ *
+ * Copyright (c) 2025 by kamalyes, All Rights Reserved.
+ */
+
 package utilities
 
-// OpCode is an opcode of compiled path patterns.
+// OpCode 编译后路径模式的操作码
 type OpCode int
 
-// These constants are the valid values of OpCode.
+// 操作码常量
 const (
-	// OpNop does nothing
+	// OpNop 无操作
 	OpNop = OpCode(iota)
-	// OpPush pushes a component to stack
+	// OpPush 将组件压入栈
 	OpPush
-	// OpLitPush pushes a component to stack if it matches to the literal
+	// OpLitPush 如果匹配字面量则将组件压入栈
 	OpLitPush
-	// OpPushM concatenates the remaining components and pushes it to stack
+	// OpPushM 拼接剩余组件并压入栈
 	OpPushM
-	// OpConcatN pops N items from stack, concatenates them and pushes it back to stack
+	// OpConcatN 从栈弹出 N 项，拼接后压回栈
 	OpConcatN
-	// OpCapture pops an item and binds it to the variable
+	// OpCapture 从栈弹出一项并绑定到变量
 	OpCapture
-	// OpEnd is the least positive invalid opcode.
+	// OpEnd 最小无效操作码
 	OpEnd
 )
