@@ -15,6 +15,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/kamalyes/grpc-runtime/testpb"
@@ -162,4 +163,15 @@ func TestBuildRequestNoParams(t *testing.T) {
 
 	err := BuildRequest(context.Background(), mux, httptest.NewRequest(http.MethodGet, "/", nil), msg, nil, NoBody(), nil)
 	assert.NoError(t, err)
+}
+
+func TestBuildRequestPatchFieldMaskFromBody(t *testing.T) {
+	mux := NewServeMux()
+	msg := new(testpb.UpdateNestedRequest)
+	r := httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(`{"one":{"two":{"three":{"a":true}}}}`))
+	r.Header.Set("Content-Type", "application/json")
+
+	err := BuildRequest(context.Background(), mux, r, msg, nil, Body("nested"), nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"one.two.three.a"}, msg.GetUpdateMask().GetPaths())
 }

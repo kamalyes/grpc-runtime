@@ -12,6 +12,7 @@
 package runtime
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -21,13 +22,28 @@ import (
 	"github.com/kamalyes/grpc-runtime/utilities"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 // BuildRequest 执行完整的请求构建 pipeline。
 // 顺序：decode body -> apply path params -> apply query params -> apply field mask -> validate。
 func BuildRequest(ctx context.Context, mux *ServeMux, r *http.Request, msg proto.Message, pathParams map[string]string, body BodyBinding, queryFilter QueryParamFilter) error {
+	var bodyBytes []byte
+	if shouldInferFieldMask(r, body) && r.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(r.Body)
+		if err != nil {
+			return err
+		}
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
 	if err := decodeBody(mux, r, msg, body); err != nil {
 		return err
+	}
+	if len(bodyBytes) > 0 {
+		if err := applyFieldMaskFromBody(msg, body.FieldPath, bodyBytes); err != nil {
+			return err
+		}
 	}
 	if len(pathParams) > 0 {
 		if err := applyPathParams(msg, pathParams); err != nil {
@@ -45,6 +61,10 @@ func BuildRequest(ctx context.Context, mux *ServeMux, r *http.Request, msg proto
 		}
 	}
 	return ValidateRequest(ctx, mux, r, msg)
+}
+
+func shouldInferFieldMask(r *http.Request, body BodyBinding) bool {
+	return r.Method == http.MethodPatch && body.HasBody && body.FieldPath != ""
 }
 
 func decodeBody(mux *ServeMux, r *http.Request, msg proto.Message, body BodyBinding) error {
@@ -116,4 +136,45 @@ func applyPathParams(msg proto.Message, pathParams map[string]string) error {
 
 func applyFieldMask(_ *http.Request, _ proto.Message) error {
 	return nil
+}
+
+// applyFieldMaskFromBody 从请求体中提取 FieldMask 并应用到消息中
+func applyFieldMaskFromBody(msg proto.Message, bodyFieldPath string, bodyBytes []byte) error {
+	fd, ok := singleFieldMaskField(msg)
+	if !ok {
+		return nil
+	}
+	ref := msg.ProtoReflect()
+	if ref.Has(fd) {
+		if existing, ok := ref.Get(fd).Message().Interface().(*fieldmaskpb.FieldMask); ok && len(existing.GetPaths()) > 0 {
+			return nil
+		}
+	}
+	bodyMsg, err := mutableFieldMessage(ref, strings.Split(bodyFieldPath, "."))
+	if err != nil {
+		return err
+	}
+	fieldMask, err := FieldMaskFromRequestBody(bytes.NewReader(bodyBytes), bodyMsg)
+	if err != nil {
+		return err
+	}
+	ref.Set(fd, protoreflect.ValueOfMessage(fieldMask.ProtoReflect()))
+	return nil
+}
+
+// singleFieldMaskField 查找消息中唯一的一个 FieldMask 字段
+func singleFieldMaskField(msg proto.Message) (protoreflect.FieldDescriptor, bool) {
+	fields := msg.ProtoReflect().Descriptor().Fields()
+	var fieldMaskField protoreflect.FieldDescriptor
+	for i := 0; i < fields.Len(); i++ {
+		fd := fields.Get(i)
+		if fd.Message() == nil || string(fd.Message().FullName()) != "google.protobuf.FieldMask" {
+			continue
+		}
+		if fieldMaskField != nil {
+			return nil, false
+		}
+		fieldMaskField = fd
+	}
+	return fieldMaskField, fieldMaskField != nil
 }
