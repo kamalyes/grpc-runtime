@@ -40,11 +40,6 @@ func BuildRequest(ctx context.Context, mux *ServeMux, r *http.Request, msg proto
 	if err := decodeBody(mux, r, msg, body); err != nil {
 		return err
 	}
-	if len(bodyBytes) > 0 {
-		if err := applyFieldMaskFromBody(msg, body.FieldPath, bodyBytes); err != nil {
-			return err
-		}
-	}
 	if len(pathParams) > 0 {
 		if err := applyPathParams(msg, pathParams); err != nil {
 			return err
@@ -57,6 +52,11 @@ func BuildRequest(ctx context.Context, mux *ServeMux, r *http.Request, msg proto
 	}
 	if r.URL.RawQuery != "" {
 		if err := applyFieldMask(r, msg); err != nil {
+			return err
+		}
+	}
+	if len(bodyBytes) > 0 {
+		if err := applyFieldMaskFromBody(msg, body.FieldPath, bodyBytes); err != nil {
 			return err
 		}
 	}

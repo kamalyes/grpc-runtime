@@ -122,27 +122,28 @@ func registerRoute(ctx context.Context, mux *ServeMux, route RouteDesc) error {
 // newRouteHandler 根据 RouteDesc 创建完整的请求处理 handler
 func newRouteHandler(ctx context.Context, mux *ServeMux, route RouteDesc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-		if ctx == nil || route.UseRequestContext {
-			ctx = r.Context()
+		baseCtx := ctx
+		if baseCtx == nil || route.UseRequestContext {
+			baseCtx = r.Context()
 		}
-		ctx, cancel := context.WithCancel(ctx)
+		reqCtx, cancel := context.WithCancel(baseCtx)
 		defer cancel()
 
 		var stream ServerTransportStream
 		if route.Incoming {
-			ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+			reqCtx = grpc.NewContextWithServerTransportStream(reqCtx, &stream)
 		}
 
 		_, outboundMarshaler := MarshalerForRequest(mux, r)
 		if route.Operation != "" {
 			var err error
 			if route.Incoming {
-				ctx, err = AnnotateIncomingContext(ctx, mux, r, route.Operation, WithHTTPPathPattern(route.Template))
+				reqCtx, err = AnnotateIncomingContext(reqCtx, mux, r, route.Operation, WithHTTPPathPattern(route.Template))
 			} else {
-				ctx, err = AnnotateContext(ctx, mux, r, route.Operation, WithHTTPPathPattern(route.Template))
+				reqCtx, err = AnnotateContext(reqCtx, mux, r, route.Operation, WithHTTPPathPattern(route.Template))
 			}
 			if err != nil {
-				mux.errorHandler(ctx, mux, outboundMarshaler, w, r, err)
+				mux.errorHandler(reqCtx, mux, outboundMarshaler, w, r, err)
 				return
 			}
 		}
@@ -151,26 +152,26 @@ func newRouteHandler(ctx context.Context, mux *ServeMux, route RouteDesc) Handle
 		msg := route.Request()
 
 		// 2. 构建请求：decode body → path params → query params → field mask → validate
-		if err := BuildRequest(ctx, mux, r, msg, pathParams, route.Body, route.QueryFilter); err != nil {
-			mux.errorHandler(ctx, mux, outboundMarshaler, w, r, err)
+		if err := BuildRequest(reqCtx, mux, r, msg, pathParams, route.Body, route.QueryFilter); err != nil {
+			mux.errorHandler(reqCtx, mux, outboundMarshaler, w, r, err)
 			return
 		}
 
 		// 3. 调用 gRPC invoker
-		resp, md, err := route.Invoker(ctx, msg, nil)
+		resp, md, err := route.Invoker(reqCtx, msg, nil)
 		if route.Incoming {
 			md.HeaderMD = metadata.Join(md.HeaderMD, stream.Header())
 			md.TrailerMD = metadata.Join(md.TrailerMD, stream.Trailer())
 		}
 		if err != nil {
-			mux.errorHandler(ctx, mux, outboundMarshaler, w, r, err)
+			mux.errorHandler(reqCtx, mux, outboundMarshaler, w, r, err)
 			return
 		}
 
 		// 4. 将 ServerMetadata 注入 context
-		ctx = NewServerMetadataContext(ctx, md)
+		reqCtx = NewServerMetadataContext(reqCtx, md)
 
 		// 5. 转发响应
-		ForwardResponseMessage(ctx, mux, outboundMarshaler, w, r, resp, mux.GetForwardResponseOptions()...)
+		ForwardResponseMessage(reqCtx, mux, outboundMarshaler, w, r, resp, mux.GetForwardResponseOptions()...)
 	}
 }
