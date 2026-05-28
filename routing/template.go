@@ -121,7 +121,7 @@ func (ct *compiledTemplate) match(path string, opts MatchOptions) (*Params, erro
 	}
 
 	parts := splitPath(rest)
-	params := NewParams(len(ct.paramNames))
+	params := AcquireParams()
 
 	segIdx := 0
 	partIdx := 0

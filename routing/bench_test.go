@@ -40,6 +40,15 @@ func buildRouteTable(n int) *Table[string] {
 	return table
 }
 
+// matchAndRelease 执行路由匹配并在完成后释放 Params，模拟真实请求生命周期
+func matchAndRelease[T any](table *Table[T], method string, path string, opts MatchOptions) (Match[T], bool, error) {
+	match, ok, err := table.Match(method, path, opts)
+	if ok {
+		match.Release()
+	}
+	return match, ok, err
+}
+
 // BenchmarkTable_StaticRoute_100 静态路由 100 条
 func BenchmarkTable_StaticRoute_100(b *testing.B) {
 	table := buildRouteTable(100)
@@ -47,7 +56,7 @@ func BenchmarkTable_StaticRoute_100(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/static/50", opts)
+		matchAndRelease(table, "GET", "/v1/static/50", opts)
 	}
 }
 
@@ -58,7 +67,7 @@ func BenchmarkTable_StaticRoute_1000(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/static/500", opts)
+		matchAndRelease(table, "GET", "/v1/static/500", opts)
 	}
 }
 
@@ -69,7 +78,7 @@ func BenchmarkTable_StaticRoute_10000(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/static/5000", opts)
+		matchAndRelease(table, "GET", "/v1/static/5000", opts)
 	}
 }
 
@@ -80,7 +89,7 @@ func BenchmarkTable_DynamicRoute_100(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/dynamic/50/abc", opts)
+		matchAndRelease(table, "GET", "/v1/dynamic/50/abc", opts)
 	}
 }
 
@@ -91,7 +100,7 @@ func BenchmarkTable_DynamicRoute_1000(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/dynamic/500/abc", opts)
+		matchAndRelease(table, "GET", "/v1/dynamic/500/abc", opts)
 	}
 }
 
@@ -102,7 +111,7 @@ func BenchmarkTable_DynamicRoute_10000(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/dynamic/5000/abc", opts)
+		matchAndRelease(table, "GET", "/v1/dynamic/5000/abc", opts)
 	}
 }
 
@@ -117,7 +126,7 @@ func BenchmarkTable_PathParams_1(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/val1", opts)
+		matchAndRelease(table, "GET", "/v1/val1", opts)
 	}
 }
 
@@ -131,7 +140,7 @@ func BenchmarkTable_PathParams_3(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/val1/val2/val3", opts)
+		matchAndRelease(table, "GET", "/v1/val1/val2/val3", opts)
 	}
 }
 
@@ -145,7 +154,7 @@ func BenchmarkTable_PathParams_5(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/val1/val2/val3/val4/val5", opts)
+		matchAndRelease(table, "GET", "/v1/val1/val2/val3/val4/val5", opts)
 	}
 }
 
@@ -160,7 +169,7 @@ func BenchmarkTable_WildcardRoute(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/a/b/c/d/e", opts)
+		matchAndRelease(table, "GET", "/v1/a/b/c/d/e", opts)
 	}
 }
 
@@ -175,7 +184,7 @@ func BenchmarkTable_VerbRoute(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		table.Match("GET", "/v1/users/123:get", opts)
+		matchAndRelease(table, "GET", "/v1/users/123:get", opts)
 	}
 }
 
@@ -271,7 +280,10 @@ func BenchmarkTable_ConcurrentMatch(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			path := fmt.Sprintf("/v1/dynamic/%d/abc", i%1000)
-			table.Match(http.MethodGet, path, opts)
+			match, ok, _ := table.Match(http.MethodGet, path, opts)
+			if ok {
+				match.Release()
+			}
 			i++
 		}
 	})

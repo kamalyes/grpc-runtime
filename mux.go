@@ -332,6 +332,17 @@ func (s *ServeMux) Handle(meth string, pat Pattern, h HandlerFunc) {
 		h = chainMiddlewares(s.middlewares)(h)
 	}
 	hd := handler{pat: pat, h: h}
+	s.registerHandler(meth, pat, hd)
+}
+
+// HandleRoute 将 RouteHandler 关联到 HTTP 方法和路径模式
+// RouteHandler 直接接收 *Params，避免 map[string]string 分配
+func (s *ServeMux) HandleRoute(meth string, pat Pattern, h routing.RouteHandler) {
+	hd := handler{pat: pat, routeHandler: h}
+	s.registerHandler(meth, pat, hd)
+}
+
+func (s *ServeMux) registerHandler(meth string, pat Pattern, hd handler) {
 	if path, ok := pat.staticPath(); ok {
 		s.staticHandlers.Store(meth, path, hd)
 		s.routes.Add(meth, routing.Route[handler]{
@@ -397,7 +408,8 @@ func (s *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ok {
-		s.handleHandler(match.Value, w, r, match.Params.Map())
+		s.handleHandler(match.Value, w, r, match.Params)
+		match.Release()
 		return
 	}
 
@@ -418,13 +430,16 @@ func (s *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				_, outboundMarshaler := MarshalerForRequest(s, r)
 				sterr := status.Error(codes.InvalidArgument, err.Error())
 				s.errorHandler(ctx, s, outboundMarshaler, w, r, sterr)
+				match.Release()
 				return
 			}
-			s.handleHandler(match.Value, w, r, match.Params.Map())
+			s.handleHandler(match.Value, w, r, match.Params)
+			match.Release()
 			return
 		}
 		_, outboundMarshaler := MarshalerForRequest(s, r)
 		s.routingErrorHandler(ctx, s, outboundMarshaler, w, r, http.StatusMethodNotAllowed)
+		match.Release()
 		return
 	}
 
@@ -442,12 +457,17 @@ func (s *ServeMux) isPathLengthFallback(r *http.Request) bool {
 }
 
 type handler struct {
-	pat Pattern
-	h   HandlerFunc
+	pat          Pattern
+	h            HandlerFunc
+	routeHandler routing.RouteHandler
 }
 
-func (s *ServeMux) handleHandler(h handler, w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-	h.h(w, r.WithContext(withHTTPPattern(r.Context(), h.pat)), pathParams)
+func (s *ServeMux) handleHandler(h handler, w http.ResponseWriter, r *http.Request, params *routing.Params) {
+	if h.routeHandler != nil {
+		h.routeHandler(w, r.WithContext(withHTTPPattern(r.Context(), h.pat)), params)
+		return
+	}
+	h.h(w, r.WithContext(withHTTPPattern(r.Context(), h.pat)), params.Map())
 }
 
 func (s *ServeMux) handleRouteMatchError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
@@ -472,7 +492,7 @@ func matchHandlerPath(h handler) routing.MatchFunc {
 			}
 			return nil, err
 		}
-		params := routing.NewParams(len(pathParams))
+		params := routing.AcquireParams()
 		for key, value := range pathParams {
 			params.Add(key, value)
 		}

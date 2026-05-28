@@ -44,6 +44,15 @@ type Match[T any] struct {
 	Method string
 }
 
+// Release 释放 Match 持有的 Params 到对象池
+// 调用方在处理完 Match 后应调用此方法，避免 Params 被 GC 回收而无法复用
+func (m *Match[T]) Release() {
+	if m.Params != nil {
+		ReleaseParams(m.Params)
+		m.Params = nil
+	}
+}
+
 // Table 按 HTTP method 存储路由
 // 静态路由使用 StaticIndex 做 O(1) 查找
 // 动态路由使用 radix trie 按 path segment 深度匹配，替代线性扫描
@@ -117,7 +126,7 @@ func (t *Table[T]) Match(method string, path string, opts MatchOptions) (Match[T
 	if route, ok := t.static.Lookup(method, path); ok {
 		return Match[T]{
 			Value:  route.Value,
-			Params: NewParams(0),
+			Params: AcquireParams(),
 			Method: method,
 		}, true, nil
 	}
@@ -129,14 +138,17 @@ func (t *Table[T]) Match(method string, path string, opts MatchOptions) (Match[T
 		if result.match && result.value != nil {
 			params := result.params
 			if result.matchFunc != nil {
+				trieParams := result.params
 				var err error
 				params, err = result.matchFunc(path, opts)
 				if err != nil {
+					ReleaseParams(trieParams)
 					if !IsNotMatch(err) {
 						return zero, false, err
 					}
 					return t.matchFallback(method, path, opts)
 				}
+				ReleaseParams(trieParams)
 			}
 			return Match[T]{
 				Value:  *result.value,

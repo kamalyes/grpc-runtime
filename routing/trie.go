@@ -141,9 +141,10 @@ type lookupResult[T any] struct {
 // parts 为按 / 分割后的 path segments（不含前导 /）
 func (n *trieNode[T]) lookup(parts []string, verb string, opts MatchOptions) lookupResult[T] {
 	var zero lookupResult[T]
-	params := NewParams(4)
+	params := AcquireParams()
 	result := n.lookupRecursive(parts, 0, verb, params, opts)
 	if !result.match {
+		ReleaseParams(params)
 		return zero
 	}
 	return result
@@ -192,20 +193,18 @@ func (n *trieNode[T]) lookupRecursive(parts []string, partIdx int, verb string, 
 		remaining := parts[partIdx:]
 		val, err := unescapeSegment(joinPath(remaining), opts)
 		if err == nil {
-			wildcardParams := NewParams(len(params.names) + 1)
-			// 复制已捕获的参数
-			for i := range params.names {
-				wildcardParams.Add(params.names[i], params.values[i])
-			}
-			wildcardParams.Add(n.wildcardName, val)
+			params.Add(n.wildcardName, val)
 			if n.wildcardChild.value != nil && n.wildcardChild.verb == verb {
 				return lookupResult[T]{
 					value:     n.wildcardChild.value,
-					params:    wildcardParams,
+					params:    params,
 					match:     true,
 					matchFunc: n.wildcardChild.matchFunc,
 				}
 			}
+			params.values[len(params.values)-1] = ""
+			params.names = params.names[:len(params.names)-1]
+			params.values = params.values[:len(params.values)-1]
 		}
 	}
 
