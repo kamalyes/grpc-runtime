@@ -1,6 +1,7 @@
+// 示例消息与服务定义 | [EN] Example messages and service definitions.
 syntax = "proto3";
 
-package grpc.gateway.runtime.internal.examplepb;
+package grpc.runtime.testpb;
 
 import "google/protobuf/any.proto";
 import "google/protobuf/empty.proto";
@@ -9,130 +10,186 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/kamalyes/grpc-runtime/testpb";
 
-// SimpleMessage represents a simple message sent to the Echo service.
+// SimpleMessage 简单消息，仅包含一个 id 字段 | [EN] Simple message with only an id field.
 message SimpleMessage {
+  // id 消息唯一标识 | [EN] Message identifier.
   string id = 1;
 }
 
+// ABitOfEverything 综合测试消息，覆盖常用 proto3 字段类型 | [EN] Message covering common proto3 field types.
 message ABitOfEverything {
-  // Nested is nested type.
+  // Nested 嵌套消息类型 | [EN] Nested message type.
   message Nested {
-    // name is nested field.
+    // name 嵌套字段名称 | [EN] Nested field name.
     string name = 1;
+    // amount 数量 | [EN] Amount.
     uint32 amount = 2;
-    // DeepEnum is one or zero.
+    // DeepEnum 深层枚举 | [EN] Deep nested enum.
     enum DeepEnum {
-      // FALSE is false.
+      // FALSE 假 | [EN] False value.
       FALSE = 0;
-      // TRUE is true.
+      // TRUE 真 | [EN] True value.
       TRUE = 1;
     }
-    // DeepEnum comment.
+    // ok 深层枚举值 | [EN] Deep enum value.
     DeepEnum ok = 3;
   }
+  // single_nested 单个嵌套消息 | [EN] Single nested message.
   Nested single_nested = 25;
+  // uuid 通用唯一标识 | [EN] Unique identifier.
   string uuid = 1;
+  // nested 嵌套消息列表 | [EN] Nested message list.
   repeated Nested nested = 2;
+  // float_value 浮点数 | [EN] Float value.
   float float_value = 3;
+  // double_value 双精度浮点数 | [EN] Double value.
   double double_value = 4;
+  // int64_value 64 位整数 | [EN] int64 value.
   int64 int64_value = 5;
+  // uint64_value 无符号 64 位整数 | [EN] uint64 value.
   uint64 uint64_value = 6;
+  // int32_value 32 位整数 | [EN] int32 value.
   int32 int32_value = 7;
+  // fixed64_value 固定 64 位值 | [EN] fixed64 value.
   fixed64 fixed64_value = 8;
+  // fixed32_value 固定 32 位值 | [EN] fixed32 value.
   fixed32 fixed32_value = 9;
+  // bool_value 布尔值 | [EN] Boolean value.
   bool bool_value = 10;
+  // string_value 字符串 | [EN] String value.
   string string_value = 11;
+  // bytes_value 字节数组 | [EN] Bytes value.
   bytes bytes_value = 29;
+  // uint32_value 无符号 32 位整数 | [EN] uint32 value.
   uint32 uint32_value = 13;
+  // enum_value 枚举值 | [EN] Enum value.
   NumericEnum enum_value = 14;
+  // sfixed32_value 有符号固定 32 位值 | [EN] sfixed32 value.
   sfixed32 sfixed32_value = 15;
+  // sfixed64_value 有符号固定 64 位值 | [EN] sfixed64 value.
   sfixed64 sfixed64_value = 16;
+  // sint32_value 有符号 32 位整数 | [EN] sint32 value.
   sint32 sint32_value = 17;
+  // sint64_value 有符号 64 位整数 | [EN] sint64 value.
   sint64 sint64_value = 18;
+  // repeated_string_value 字符串列表 | [EN] Repeated string value.
   repeated string repeated_string_value = 19;
+  // oneof_value 单值选择 | [EN] Oneof value.
   oneof oneof_value {
+    // oneof_empty 空值选项 | [EN] Empty oneof option.
     google.protobuf.Empty oneof_empty = 20;
+    // oneof_string 字符串选项 | [EN] String oneof option.
     string oneof_string = 21;
   }
+  // map_value 枚举值映射 | [EN] Enum map value.
   map<string, NumericEnum> map_value = 22;
+  // mapped_string_value 字符串映射 | [EN] String map value.
   map<string, string> mapped_string_value = 23;
+  // mapped_nested_value 嵌套消息映射 | [EN] Nested message map value.
   map<string, Nested> mapped_nested_value = 24;
+  // nonConventionalNameValue 非常规命名字段 | [EN] Non-conventional name value.
   string nonConventionalNameValue = 26;
+  // timestamp_value 时间戳 | [EN] Timestamp value.
   google.protobuf.Timestamp timestamp_value = 27;
-  // repeated enum value. it is comma-separated in query
+  // repeated_enum_value 枚举值列表 | [EN] Repeated enum values.
   repeated NumericEnum repeated_enum_value = 28;
-  // repeated numeric enum comment (This comment is overridden by the field
-  // annotation)
+  // repeated_enum_annotation 带注释的枚举值列表 | [EN] Annotated repeated enum values.
   repeated NumericEnum repeated_enum_annotation = 32;
-  // numeric enum comment (This comment is overridden by the field annotation)
+  // enum_value_annotation 带注释的枚举值 | [EN] Annotated enum value.
   NumericEnum enum_value_annotation = 33;
-  // repeated string comment (This comment is overridden by the field
-  // annotation)
+  // repeated_string_annotation 带注释的字符串列表 | [EN] Annotated repeated string values.
   repeated string repeated_string_annotation = 34;
-  // repeated nested object comment (This comment is overridden by the field
-  // annotation)
+  // repeated_nested_annotation 带注释的嵌套消息列表 | [EN] Annotated repeated nested messages.
   repeated Nested repeated_nested_annotation = 35;
-  // nested object comments (This comment is overridden by the field annotation)
+  // nested_annotation 带注释的嵌套消息 | [EN] Annotated nested message.
   Nested nested_annotation = 36;
+  // int64_override_type 类型覆盖测试字段 | [EN] Type override test field.
   int64 int64_override_type = 37;
+  // anytype Any 类型字段 | [EN] Any field.
   google.protobuf.Any anytype = 38;
+  // repeated_anytype Any 类型列表 | [EN] Repeated Any field.
   repeated google.protobuf.Any repeated_anytype = 39;
 }
 
-// NumericEnum is one or zero.
+// NumericEnum 数值枚举类型 | [EN] Numeric enum type.
 enum NumericEnum {
-  // ZERO means 0
+  // ZERO 零 | [EN] Zero value.
   ZERO = 0;
-  // ONE means 1
+  // ONE 一 | [EN] One value.
   ONE = 1;
 }
 
+// ResponseBodyOut 响应体外层消息 | [EN] Response body wrapper.
 message ResponseBodyOut {
+  // Response 响应数据 | [EN] Response payload.
   message Response {
+    // data 响应数据内容 | [EN] Response data.
     string data = 1;
   }
+  // response 响应消息 | [EN] Response message.
   Response response = 2;
 }
 
+// RepeatedResponseBodyOut 重复响应体外层消息 | [EN] Repeated response body wrapper.
 message RepeatedResponseBodyOut {
+  // Response 响应数据 | [EN] Response payload.
   message Response {
+    // data 响应数据内容 | [EN] Response data.
     string data = 1;
+    // ResponseType 响应类型枚举 | [EN] Response type enum.
     enum ResponseType {
-      // UNKNOWN
+      // UNKNOWN 未知类型 | [EN] Unknown type.
       UNKNOWN = 0;
-      // A is 1
+      // A 类型 A | [EN] Type A.
       A = 1;
-      // B is 2
+      // B 类型 B | [EN] Type B.
       B = 2;
     }
+    // type 响应类型 | [EN] Response type.
     ResponseType type = 3;
   }
+  // response 响应消息列表 | [EN] Response message list.
   repeated Response response = 2;
 }
 
+// UpdateMessage 支持 FieldMask 局部更新的消息 | [EN] Message supporting FieldMask partial updates.
 message UpdateMessage {
+  // update_mask 更新字段掩码 | [EN] Update field mask.
   google.protobuf.FieldMask update_mask = 1;
+  // a_bit_of_everything 待更新的综合消息 | [EN] Message to update.
   ABitOfEverything a_bit_of_everything = 2;
 }
 
+// NestedOuter 三层嵌套消息的外层 | [EN] Outer layer of a three-level nested message.
 message NestedOuter {
+  // one 第一层嵌套 | [EN] First nested layer.
   NestedOne one = 1;
 }
 
+// NestedOne 三层嵌套消息的中间层 | [EN] Middle layer of a three-level nested message.
 message NestedOne {
+  // two 第二层嵌套 | [EN] Second nested layer.
   NestedTwo two = 1;
 }
 
+// NestedTwo 三层嵌套消息的内层 | [EN] Inner layer of a three-level nested message.
 message NestedTwo {
+  // three 第三层嵌套 | [EN] Third nested layer.
   NestedThree three = 1;
 }
 
+// NestedThree 三层嵌套消息的最内层 | [EN] Innermost layer of a three-level nested message.
 message NestedThree {
+  // a 布尔字段 a | [EN] Boolean field a.
   bool a = 1;
+  // b 布尔字段 b | [EN] Boolean field b.
   bool b = 2;
 }
 
+// UpdateNestedRequest 嵌套消息更新请求 | [EN] Nested message update request.
 message UpdateNestedRequest {
+  // nested 嵌套消息 | [EN] Nested message.
   NestedOuter nested = 1;
+  // update_mask 更新字段掩码 | [EN] Update field mask.
   google.protobuf.FieldMask update_mask = 2;
 }

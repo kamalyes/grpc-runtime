@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package grpc.runtime.protocgen.descriptor.openapiconfig;
+
+import "protocgen/openapiv2/options/openapiv2.proto";
+
+option go_package = "github.com/kamalyes/grpc-runtime/protocgen/descriptor/openapiconfig";
+
+// OpenAPI 文件级配置 | [EN] OpenAPI file-level option binding
+message OpenAPIFileOption {
+  // proto 文件路径 | [EN] Proto file path
+  string file = 1;
+  // 文件级 OpenAPI 选项 | [EN] File-level OpenAPI option
+  grpc.runtime.protoc_gen_openapiv2.options.Swagger option = 2;
+}
+
+// OpenAPI 方法级配置 | [EN] OpenAPI method-level option binding
+message OpenAPIMethodOption {
+  // 完整方法名 | [EN] Fully-qualified method name
+  string method = 1;
+  // 方法级 OpenAPI 选项 | [EN] Method-level OpenAPI option
+  grpc.runtime.protoc_gen_openapiv2.options.Operation option = 2;
+}
+
+// OpenAPI 消息级配置 | [EN] OpenAPI message-level option binding
+message OpenAPIMessageOption {
+  // 完整消息名 | [EN] Fully-qualified message name
+  string message = 1;
+  // 消息级 OpenAPI 选项 | [EN] Message-level OpenAPI option
+  grpc.runtime.protoc_gen_openapiv2.options.Schema option = 2;
+}
+
+// OpenAPI 服务级配置 | [EN] OpenAPI service-level option binding
+message OpenAPIServiceOption {
+  // 完整服务名 | [EN] Fully-qualified service name
+  string service = 1;
+  // 服务级 OpenAPI 标签选项 | [EN] Service-level OpenAPI tag option
+  grpc.runtime.protoc_gen_openapiv2.options.Tag option = 2;
+}
+
+// OpenAPI 字段级配置 | [EN] OpenAPI field-level option binding
+message OpenAPIFieldOption {
+  // 完整字段名 | [EN] Fully-qualified field name
+  string field = 1;
+  // 字段级 OpenAPI 选项 | [EN] Field-level OpenAPI option
+  grpc.runtime.protoc_gen_openapiv2.options.JSONSchema option = 2;
+}
+
+// OpenAPI 配置集合 | [EN] OpenAPI option binding collection
+message OpenAPIOptions {
+  repeated OpenAPIFileOption file = 1;
+  repeated OpenAPIMethodOption method = 2;
+  repeated OpenAPIMessageOption message = 3;
+  repeated OpenAPIServiceOption service = 4;
+  repeated OpenAPIFieldOption field = 5;
+}
+
+// OpenAPI 配置文件根节点 | [EN] Root node for OpenAPI configuration files
+message OpenAPIConfig {
+  // OpenAPI 选项集合 | [EN] OpenAPI option collection
+  OpenAPIOptions openapi_options = 1;
+}

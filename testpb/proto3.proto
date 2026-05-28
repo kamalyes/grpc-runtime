@@ -1,6 +1,7 @@
+// Proto3 字段类型测试消息 | [EN] Proto3 field type test messages.
 syntax = "proto3";
 
-package grpc.gateway.runtime.internal.examplepb;
+package grpc.runtime.testpb;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/field_mask.proto";
@@ -10,63 +11,116 @@ import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/kamalyes/grpc-runtime/testpb";
 
+// Proto3Message 覆盖 proto3 标量、Well-Known、map 与 oneof 字段 | [EN] Covers proto3 scalar, well-known, map and oneof fields.
 message Proto3Message {
-  // Next number: 51
+  // nested 嵌套自身消息 | [EN] Nested self message.
   Proto3Message nested = 41;
+  // float_value 浮点数 | [EN] Float value.
   float float_value = 42;
+  // double_value 双精度浮点数 | [EN] Double value.
   double double_value = 43;
+  // int64_value 64 位整数 | [EN] int64 value.
   int64 int64_value = 3;
+  // int32_value 32 位整数 | [EN] int32 value.
   int32 int32_value = 4;
+  // uint64_value 无符号 64 位整数 | [EN] uint64 value.
   uint64 uint64_value = 5;
+  // uint32_value 无符号 32 位整数 | [EN] uint32 value.
   uint32 uint32_value = 6;
+  // bool_value 布尔值 | [EN] Boolean value.
   bool bool_value = 7;
+  // string_value 字符串 | [EN] String value.
   string string_value = 8;
+  // bytes_value 字节数组 | [EN] Bytes value.
   bytes bytes_value = 9;
+  // repeated_value 字符串列表 | [EN] Repeated string value.
   repeated string repeated_value = 10;
+  // optional_value proto3 optional 字段 | [EN] proto3 optional string value.
   optional string optional_value = 49;
+  // repeated_message Well-Known 包装类型列表 | [EN] Repeated well-known wrapper messages.
   repeated google.protobuf.UInt64Value repeated_message = 44;
+  // enum_value 枚举值 | [EN] Enum value.
   EnumValue enum_value = 11;
+  // repeated_enum 枚举值列表 | [EN] Repeated enum values.
   repeated EnumValue repeated_enum = 12;
+  // timestamp_value 时间戳 | [EN] Timestamp value.
   google.protobuf.Timestamp timestamp_value = 13;
+  // duration_value 持续时间 | [EN] Duration value.
   google.protobuf.Duration duration_value = 14;
+  // fieldmask_value 字段掩码 | [EN] Field mask value.
   google.protobuf.FieldMask fieldmask_value = 15;
+  // oneof_value 单值选择 | [EN] Oneof scalar selection.
   oneof oneof_value {
+    // oneof_bool_value 布尔选项 | [EN] Boolean oneof option.
     bool oneof_bool_value = 1;
+    // oneof_string_value 字符串选项 | [EN] String oneof option.
     string oneof_string_value = 2;
   }
+  // nested_oneof_value 嵌套 oneof | [EN] Nested oneof selection.
   oneof nested_oneof_value {
+    // nested_oneof_int32_value 32 位整数选项 | [EN] int32 oneof option.
     int32 nested_oneof_int32_value = 50;
+    // nested_oneof_value_one 消息选项 | [EN] Message oneof option.
     Proto3Message nested_oneof_value_one = 46;
   }
+  // wrapper_double_value Double 包装类型 | [EN] Double wrapper.
   google.protobuf.DoubleValue wrapper_double_value = 17;
+  // wrapper_float_value Float 包装类型 | [EN] Float wrapper.
   google.protobuf.FloatValue wrapper_float_value = 18;
+  // wrapper_int64_value Int64 包装类型 | [EN] Int64 wrapper.
   google.protobuf.Int64Value wrapper_int64_value = 19;
+  // wrapper_int32_value Int32 包装类型 | [EN] Int32 wrapper.
   google.protobuf.Int32Value wrapper_int32_value = 20;
+  // wrapper_u_int64_value UInt64 包装类型 | [EN] UInt64 wrapper.
   google.protobuf.UInt64Value wrapper_u_int64_value = 21;
+  // wrapper_u_int32_value UInt32 包装类型 | [EN] UInt32 wrapper.
   google.protobuf.UInt32Value wrapper_u_int32_value = 22;
+  // wrapper_bool_value Bool 包装类型 | [EN] Bool wrapper.
   google.protobuf.BoolValue wrapper_bool_value = 23;
+  // wrapper_string_value String 包装类型 | [EN] String wrapper.
   google.protobuf.StringValue wrapper_string_value = 24;
+  // wrapper_bytes_value Bytes 包装类型 | [EN] Bytes wrapper.
   google.protobuf.BytesValue wrapper_bytes_value = 25;
+  // map_value 字符串到字符串映射 | [EN] string to string map.
   map<string, string> map_value = 26;
+  // map_value2 字符串到 int32 映射 | [EN] string to int32 map.
   map<string, int32> map_value2 = 27;
+  // map_value3 int32 到字符串映射 | [EN] int32 to string map.
   map<int32, string> map_value3 = 28;
+  // map_value4 字符串到 int64 映射 | [EN] string to int64 map.
   map<string, int64> map_value4 = 29;
+  // map_value5 int64 到字符串映射 | [EN] int64 to string map.
   map<int64, string> map_value5 = 30;
+  // map_value6 字符串到 uint32 映射 | [EN] string to uint32 map.
   map<string, uint32> map_value6 = 31;
+  // map_value7 uint32 到字符串映射 | [EN] uint32 to string map.
   map<uint32, string> map_value7 = 32;
+  // map_value8 字符串到 uint64 映射 | [EN] string to uint64 map.
   map<string, uint64> map_value8 = 33;
+  // map_value9 uint64 到字符串映射 | [EN] uint64 to string map.
   map<uint64, string> map_value9 = 34;
+  // map_value10 字符串到 float 映射 | [EN] string to float map.
   map<string, float> map_value10 = 35;
+  // map_value12 字符串到 double 映射 | [EN] string to double map.
   map<string, double> map_value12 = 37;
+  // map_value14 字符串到 bool 映射 | [EN] string to bool map.
   map<string, bool> map_value14 = 39;
+  // map_value15 bool 到字符串映射 | [EN] bool to string map.
   map<bool, string> map_value15 = 40;
+  // map_value16 字符串到 UInt64 包装类型映射 | [EN] string to UInt64 wrapper map.
   map<string, google.protobuf.UInt64Value> map_value16 = 45;
+  // struct_value_value Value 类型字段 | [EN] google.protobuf.Value field.
   google.protobuf.Value struct_value_value = 47;
+  // struct_value Struct 类型字段 | [EN] google.protobuf.Struct field.
   google.protobuf.Struct struct_value = 48;
 }
 
+// EnumValue 测试枚举值 | [EN] Test enum values.
 enum EnumValue {
+  // X 枚举值 X | [EN] Enum value X.
   X = 0;
+  // Y 枚举值 Y | [EN] Enum value Y.
   Y = 1;
+  // Z 枚举值 Z | [EN] Enum value Z.
   Z = 2;
 }

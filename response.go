@@ -52,10 +52,10 @@ func HTTPStatusFromCode(code codes.Code) int { return response.HTTPStatusFromCod
 
 func CodeFromHTTPStatus(httpStatus int) codes.Code { return response.CodeFromHTTPStatus(httpStatus) }
 
-func IsHTTPSuccess(httpStatus int) bool        { return response.IsHTTPSuccess(httpStatus) }
-func IsHTTPClientError(httpStatus int) bool     { return response.IsHTTPClientError(httpStatus) }
-func IsHTTPServerError(httpStatus int) bool     { return response.IsHTTPServerError(httpStatus) }
-func IsHTTPRedirect(httpStatus int) bool        { return response.IsHTTPRedirect(httpStatus) }
+func IsHTTPSuccess(httpStatus int) bool     { return response.IsHTTPSuccess(httpStatus) }
+func IsHTTPClientError(httpStatus int) bool { return response.IsHTTPClientError(httpStatus) }
+func IsHTTPServerError(httpStatus int) bool { return response.IsHTTPServerError(httpStatus) }
+func IsHTTPRedirect(httpStatus int) bool    { return response.IsHTTPRedirect(httpStatus) }
 
 // HTTPError 使用 mux 配置的错误处理器
 func HTTPError(ctx context.Context, mux *ServeMux, marshaler Marshaler, w http.ResponseWriter, r *http.Request, err error) {

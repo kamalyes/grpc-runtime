@@ -79,14 +79,9 @@ func tokenize(path string) (tokens []string, verb string) {
 	}
 
 	l := len(tokens)
-	// See
-	// https://github.com/grpc-ecosystem/grpc-gateway/pull/1947#issuecomment-774523693 ;
-	// although normal and backwards-compat logic here is to use the last index
-	// of a colon, if the final segment is a variable followed by a colon, the
-	// part following the colon must be a verb. Hence if the previous token is
-	// an end var marker, we switch the index we're looking for to Index instead
-	// of LastIndex, so that we correctly grab the remaining part of the path as
-	// the verb.
+	// If the final segment is a variable followed by a colon, the part after
+	// the colon is the verb. In that case we use the first colon instead of the
+	// last one so the remaining path is captured as the verb.
 	var penultimateTokenIsEndVar bool
 	switch l {
 	case 0, 1:

@@ -1,18 +1,30 @@
+// Proto2 字段类型测试消息 | [EN] Proto2 field type test messages.
 syntax = "proto2";
 
-package grpc.gateway.runtime.internal.examplepb;
+package grpc.runtime.testpb;
 
 option go_package = "github.com/kamalyes/grpc-runtime/testpb";
 
+// Proto2Message 覆盖 proto2 optional/repeated 标量字段类型 | [EN] Covers proto2 optional and repeated scalar fields.
 message Proto2Message {
+  // float_value 浮点数 | [EN] Float value.
   optional float float_value = 42;
+  // double_value 双精度浮点数 | [EN] Double value.
   optional double double_value = 43;
+  // int64_value 64 位整数 | [EN] int64 value.
   optional int64 int64_value = 3;
+  // int32_value 32 位整数 | [EN] int32 value.
   optional int32 int32_value = 4;
+  // uint64_value 无符号 64 位整数 | [EN] uint64 value.
   optional uint64 uint64_value = 5;
+  // uint32_value 无符号 32 位整数 | [EN] uint32 value.
   optional uint32 uint32_value = 6;
+  // bool_value 布尔值 | [EN] Boolean value.
   optional bool bool_value = 7;
+  // string_value 字符串 | [EN] String value.
   optional string string_value = 8;
+  // bytes_value 字节数组 | [EN] Bytes value.
   optional bytes bytes_value = 9;
+  // repeated_value 字符串列表 | [EN] Repeated string value.
   repeated string repeated_value = 10;
 }

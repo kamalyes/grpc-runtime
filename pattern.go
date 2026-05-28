@@ -2,7 +2,7 @@
  * @Author: kamalyes 501893067@qq.com
  * @Date: 2025-05-25 00:00:00
  * @LastEditors: kamalyes 501893067@qq.com
- * @LastEditTime: 2026-05-28 10:44:46
+ * @LastEditTime: 2026-05-28 16:02:56
  * @FilePath: \grpc-runtime\pattern.go
  * @Description: HTTP 路径模式匹配，基于 opcode VM 实现
  *
@@ -187,11 +187,12 @@ func (p Pattern) MatchAndEscape(components []string, verb string, unescapingMode
 				return nil, ErrNotMatch
 			}
 			c := components[pos]
-			if op.code == utilities.OpLitPush {
+			switch op.code {
+			case utilities.OpLitPush:
 				if lit := p.pool[op.operand]; c != lit {
 					return nil, ErrNotMatch
 				}
-			} else if op.code == utilities.OpPush {
+			case utilities.OpPush:
 				if c, err = unescape(c, unescapingMode, false); err != nil {
 					return nil, err
 				}

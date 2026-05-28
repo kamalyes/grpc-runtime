@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	examplepb "github.com/kamalyes/grpc-runtime/testpb"
+	"github.com/kamalyes/grpc-runtime/testpb"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -26,16 +26,16 @@ func TestFieldMaskFromRequestBody(t *testing.T) {
 		expected *field_mask.FieldMask
 	}{
 		{name: "empty", expected: newFieldMask()},
-		{name: "EmptyMessage", msg: &examplepb.ABitOfEverything{}, input: `{"oneof_empty": {}}`, expected: newFieldMask("oneof_empty")},
-		{name: "simple", msg: &examplepb.ABitOfEverything{}, input: `{"uuid":"1234", "floatValue":3.14}`, expected: newFieldMask("uuid", "float_value")},
-		{name: "NonStandardMessage", msg: &examplepb.NonStandardMessage{}, input: `{"id":"foo", "thing":{"subThing":{"sub_value":"bar"}}}`, expected: newFieldMask("id", "thing.subThing.sub_value")},
-		{name: "NonStandardMessageWithJSONNames", msg: &examplepb.NonStandardMessageWithJSONNames{}, input: `{"ID":"foo", "Thingy":{"SubThing":{"sub_Value":"bar"}}}`, expected: newFieldMask("id", "thing.subThing.sub_value")},
-		{name: "nested", msg: &examplepb.ABitOfEverything{}, input: `{"single_nested": {"name":"bob", "amount": 2}, "uuid":"1234"}`, expected: newFieldMask("single_nested.name", "single_nested.amount", "uuid")},
-		{name: "struct", msg: &examplepb.NonStandardMessage{}, input: `{"struct_field": {"name":{"first": "bob"}, "amount": 2}}`, expected: newFieldMask("struct_field.name.first", "struct_field.amount")},
-		{name: "NonStandardMessageWithJSONNamesForStruct", msg: &examplepb.NonStandardMessage{}, input: `{"lineNum": 123, "structField": {"name":"bob"}}`, expected: newFieldMask("line_num", "struct_field.name")},
-		{name: "value", msg: &examplepb.NonStandardMessage{}, input: `{"value_field": {"name":{"first": "bob"}, "amount": 2}}`, expected: newFieldMask("value_field.name.first", "value_field.amount")},
-		{name: "map", msg: &examplepb.ABitOfEverything{}, input: `{"mapped_string_value": {"a": "x"}}`, expected: newFieldMask("mapped_string_value")},
-		{name: "deeply-nested", msg: &examplepb.NestedOuter{}, input: `{"one":{"two":{"three":{"a":true, "b":false}}}}`, expected: newFieldMask("one.two.three.a", "one.two.three.b")},
+		{name: "EmptyMessage", msg: &testpb.ABitOfEverything{}, input: `{"oneof_empty": {}}`, expected: newFieldMask("oneof_empty")},
+		{name: "simple", msg: &testpb.ABitOfEverything{}, input: `{"uuid":"1234", "floatValue":3.14}`, expected: newFieldMask("uuid", "float_value")},
+		{name: "NonStandardMessage", msg: &testpb.NonStandardMessage{}, input: `{"id":"foo", "thing":{"subThing":{"sub_value":"bar"}}}`, expected: newFieldMask("id", "thing.subThing.sub_value")},
+		{name: "NonStandardMessageWithJSONNames", msg: &testpb.NonStandardMessageWithJSONNames{}, input: `{"ID":"foo", "Thingy":{"SubThing":{"sub_Value":"bar"}}}`, expected: newFieldMask("id", "thing.subThing.sub_value")},
+		{name: "nested", msg: &testpb.ABitOfEverything{}, input: `{"single_nested": {"name":"bob", "amount": 2}, "uuid":"1234"}`, expected: newFieldMask("single_nested.name", "single_nested.amount", "uuid")},
+		{name: "struct", msg: &testpb.NonStandardMessage{}, input: `{"struct_field": {"name":{"first": "bob"}, "amount": 2}}`, expected: newFieldMask("struct_field.name.first", "struct_field.amount")},
+		{name: "NonStandardMessageWithJSONNamesForStruct", msg: &testpb.NonStandardMessage{}, input: `{"lineNum": 123, "structField": {"name":"bob"}}`, expected: newFieldMask("line_num", "struct_field.name")},
+		{name: "value", msg: &testpb.NonStandardMessage{}, input: `{"value_field": {"name":{"first": "bob"}, "amount": 2}}`, expected: newFieldMask("value_field.name.first", "value_field.amount")},
+		{name: "map", msg: &testpb.ABitOfEverything{}, input: `{"mapped_string_value": {"a": "x"}}`, expected: newFieldMask("mapped_string_value")},
+		{name: "deeply-nested", msg: &testpb.NestedOuter{}, input: `{"one":{"two":{"three":{"a":true, "b":false}}}}`, expected: newFieldMask("one.two.three.a", "one.two.three.b")},
 		{
 			name: "complex",
 			input: `
@@ -83,7 +83,7 @@ func TestFieldMaskFromRequestBody(t *testing.T) {
 				}
 			}
 `,
-			msg: &examplepb.ABitOfEverything{},
+			msg: &testpb.ABitOfEverything{},
 			expected: newFieldMask(
 				"single_nested.name",
 				"single_nested.amount",
@@ -115,8 +115,8 @@ func TestFieldMaskFromRequestBody(t *testing.T) {
 				"nested",
 			),
 		},
-		{name: "protobuf-any", msg: &examplepb.ABitOfEverything{}, input: `{"anytype":{"@type": "xx.xx/examplepb.NestedOuter", "one":{"two":{"three":{"a":true, "b":false}}}}}`, expected: newFieldMask("anytype")},
-		{name: "repeated-protobuf-any", msg: &examplepb.ABitOfEverything{}, input: `{"repeated_anytype":[{"@type": "xx.xx/examplepb.NestedOuter", "one":{"two":{"three":{"a":true, "b":false}}}}]}`, expected: newFieldMask("repeated_anytype")},
+		{name: "protobuf-any", msg: &testpb.ABitOfEverything{}, input: `{"anytype":{"@type": "xx.xx/testpb.NestedOuter", "one":{"two":{"three":{"a":true, "b":false}}}}}`, expected: newFieldMask("anytype")},
+		{name: "repeated-protobuf-any", msg: &testpb.ABitOfEverything{}, input: `{"repeated_anytype":[{"@type": "xx.xx/testpb.NestedOuter", "one":{"two":{"three":{"a":true, "b":false}}}}]}`, expected: newFieldMask("repeated_anytype")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			actual, err := FieldMaskFromRequestBody(bytes.NewReader([]byte(tc.input)), tc.msg)
@@ -163,7 +163,7 @@ func TestFieldMaskRepeatedFieldsLast(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := FieldMaskFromRequestBody(bytes.NewReader([]byte(tc.input)), &examplepb.ABitOfEverything{})
+			actual, err := FieldMaskFromRequestBody(bytes.NewReader([]byte(tc.input)), &testpb.ABitOfEverything{})
 			assert.NoError(t, err, "unexpected error")
 			assert.Empty(t, cmp.Diff(tc.expected, actual, protocmp.Transform()), "field masks differed")
 		})
@@ -179,7 +179,7 @@ func TestFieldMaskErrors(t *testing.T) {
 		{name: "object under scalar", input: `{"uuid": {"a": "x"}}`, expectedErr: errors.New("JSON structure did not match request type")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := FieldMaskFromRequestBody(bytes.NewReader([]byte(tc.input)), &examplepb.ABitOfEverything{})
+			_, err := FieldMaskFromRequestBody(bytes.NewReader([]byte(tc.input)), &testpb.ABitOfEverything{})
 			assert.Error(t, err)
 			assert.Equal(t, tc.expectedErr.Error(), err.Error())
 		})

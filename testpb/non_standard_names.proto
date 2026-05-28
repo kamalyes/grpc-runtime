@@ -1,6 +1,7 @@
+// 非标准命名消息与服务定义 | [EN] Non-standard name messages and service definitions.
 syntax = "proto3";
 
-package grpc.gateway.runtime.internal.examplepb;
+package grpc.runtime.testpb;
 
 import "google/api/annotations.proto";
 import "google/protobuf/field_mask.proto";
@@ -8,63 +9,95 @@ import "google/protobuf/struct.proto";
 
 option go_package = "github.com/kamalyes/grpc-runtime/testpb";
 
-// NonStandardMessage has oddly named fields.
+// NonStandardMessage 包含非常规字段名 | [EN] Message with non-standard protobuf field names.
 message NonStandardMessage {
-  // Id represents the message identifier.
+  // id 消息唯一标识 | [EN] Message identifier.
   string id = 1;
+  // Num 大写开头的数字字段 | [EN] Numeric field starting with an uppercase letter.
   int64 Num = 2;
+  // line_num 下划线分隔的行号字段 | [EN] Snake-case line number field.
   int64 line_num = 3;
+  // langIdent 驼峰命名的语言标识 | [EN] Camel-case language identifier.
   string langIdent = 4;
+  // STATUS 全大写状态字段 | [EN] Uppercase status field.
   string STATUS = 5;
+  // en_GB 包含地区代码的字段 | [EN] Field with region code.
   int64 en_GB = 6;
+  // no 与 Go 关键字冲突的字段 | [EN] Field colliding with a Go keyword.
   string no = 7;
 
+  // Thing 嵌套对象类型 | [EN] Nested thing type.
   message Thing {
+    // SubThing 子对象类型 | [EN] Nested sub-thing type.
     message SubThing {
+      // sub_value 子对象值 | [EN] Sub-thing value.
       string sub_value = 1;
     }
+    // subThing 子对象实例 | [EN] Sub-thing instance.
     SubThing subThing = 1;
   }
+  // thing 对象字段 | [EN] Thing field.
   Thing thing = 8;
+  // struct_field Struct 类型字段 | [EN] Struct field.
   google.protobuf.Struct struct_field = 9;
+  // value_field Value 类型字段 | [EN] Value field.
   google.protobuf.Value value_field = 10;
 }
 
+// NonStandardUpdateRequest 非标准消息更新请求 | [EN] Update request for NonStandardMessage.
 message NonStandardUpdateRequest {
+  // body 请求体 | [EN] Request body.
   NonStandardMessage body = 1;
+  // update_mask 更新字段掩码 | [EN] Update field mask.
   google.protobuf.FieldMask update_mask = 2;
 }
 
-// NonStandardMessageWithJSONNames maps odd field names to odd JSON names for maximum confusion.
+// NonStandardMessageWithJSONNames 带自定义 JSON 名称的非标准消息 | [EN] Non-standard message with custom JSON names.
 message NonStandardMessageWithJSONNames {
-  // Id represents the message identifier.
+  // id 消息唯一标识 | [EN] Message identifier.
   string id = 1 [json_name = "ID"];
+  // Num 大写开头的数字字段 | [EN] Numeric field starting with an uppercase letter.
   int64 Num = 2 [json_name = "Num"];
+  // line_num 行号字段 | [EN] Line number field.
   int64 line_num = 3 [json_name = "LineNum"];
+  // langIdent 语言标识字段 | [EN] Language identifier field.
   string langIdent = 4 [json_name = "langIdent"];
+  // STATUS 状态字段 | [EN] Status field.
   string STATUS = 5 [json_name = "status"];
+  // en_GB 地区代码字段 | [EN] Region code field.
   int64 en_GB = 6 [json_name = "En_GB"];
+  // no 与 Go 关键字冲突的字段 | [EN] Field colliding with a Go keyword.
   string no = 7 [json_name = "yes"];
 
+  // Thing 嵌套对象类型 | [EN] Nested thing type.
   message Thing {
+    // SubThing 子对象类型 | [EN] Nested sub-thing type.
     message SubThing {
+      // sub_value 子对象值 | [EN] Sub-thing value.
       string sub_value = 1 [json_name = "sub_Value"];
     }
+    // subThing 子对象实例 | [EN] Sub-thing instance.
     SubThing subThing = 1 [json_name = "SubThing"];
   }
+  // thing 对象字段 | [EN] Thing field.
   Thing thing = 8 [json_name = "Thingy"];
+  // struct_field Struct 类型字段 | [EN] Struct field.
   google.protobuf.Struct struct_field = 9 [json_name = "StructField"];
+  // value_field Value 类型字段 | [EN] Value field.
   google.protobuf.Value value_field = 10 [json_name = "ValueField"];
 }
 
+// NonStandardWithJSONNamesUpdateRequest 自定义 JSON 名称消息更新请求 | [EN] Update request for custom JSON-name message.
 message NonStandardWithJSONNamesUpdateRequest {
+  // body 请求体 | [EN] Request body.
   NonStandardMessageWithJSONNames body = 1;
+  // update_mask 更新字段掩码 | [EN] Update field mask.
   google.protobuf.FieldMask update_mask = 2;
 }
 
-// NonStandardService responds to incoming messages, applies a field mask and returns the masked response.
+// NonStandardService 支持 FieldMask 局部更新的非标准命名服务 | [EN] Service for FieldMask updates on non-standard messages.
 service NonStandardService {
-  // Apply field mask to empty NonStandardMessage and return result.
+  // Update 更新非标准消息 | [EN] Updates a non-standard message.
   rpc Update(NonStandardUpdateRequest) returns (NonStandardMessage) {
     option (google.api.http) = {
       patch: "/v1/example/non_standard/update"
@@ -72,7 +105,7 @@ service NonStandardService {
     };
   }
 
-  // Apply field mask to empty NonStandardMessageWithJSONNames and return result.
+  // UpdateWithJSONNames 更新自定义 JSON 名称消息 | [EN] Updates a message with custom JSON names.
   rpc UpdateWithJSONNames(NonStandardWithJSONNamesUpdateRequest) returns (NonStandardMessageWithJSONNames) {
     option (google.api.http) = {
       patch: "/v1/example/non_standard/update_with_json_names"
