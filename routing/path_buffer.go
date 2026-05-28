@@ -11,12 +11,7 @@
 
 package routing
 
-import (
-	"regexp"
-	"strings"
-)
-
-var encodedSlashSplitter = regexp.MustCompile("(/|%2F)")
+import "strings"
 
 // PathBuffer 可复用的路径分割缓冲区
 // 调用方可通过 Reset 复用底层 slice，避免每次请求分配临时存储
@@ -40,8 +35,35 @@ func (b *PathBuffer) Split(path string, splitEncodedSlash bool) []string {
 	}
 	trimmed := strings.TrimPrefix(path, "/")
 	if splitEncodedSlash {
-		return encodedSlashSplitter.Split(trimmed, -1)
+		return splitPathEncodedInto(b.components[:0], trimmed)
 	}
 	b.components = append(b.components[:0], strings.Split(trimmed, "/")...)
 	return b.components
+}
+
+// splitPathEncodedInto 按 / 和 %2F 分割路径，结果追加到 dst
+// 替代 regexp.Split，手动扫描避免 regex 开销
+func splitPathEncodedInto(dst []string, path string) []string {
+	start := 0
+	for i := 0; i < len(path); {
+		if path[i] == '/' {
+			if i > start {
+				dst = append(dst, path[start:i])
+			}
+			start = i + 1
+			i++
+		} else if i+2 < len(path) && path[i] == '%' && path[i+1] == '2' && (path[i+2] == 'F' || path[i+2] == 'f') {
+			if i > start {
+				dst = append(dst, path[start:i])
+			}
+			start = i + 3
+			i += 3
+		} else {
+			i++
+		}
+	}
+	if start < len(path) {
+		dst = append(dst, path[start:])
+	}
+	return dst
 }

@@ -11,6 +11,8 @@
 
 package routing
 
+import "strings"
+
 // segKind 路径段类型分类
 type segKind int
 
@@ -253,14 +255,7 @@ func splitPath(path string) []string {
 
 // joinPath 用 / 连接 segments
 func joinPath(parts []string) string {
-	result := make([]byte, 0, len(parts)*16)
-	for i, p := range parts {
-		if i > 0 {
-			result = append(result, '/')
-		}
-		result = append(result, p...)
-	}
-	return string(result)
+	return strings.Join(parts, "/")
 }
 
 // unescapeSegment 对单个 path segment 做 unescape

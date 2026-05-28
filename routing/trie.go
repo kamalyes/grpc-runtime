@@ -116,11 +116,10 @@ func (n *trieNode[T]) lookupChild(seg string) *trieNode[T] {
 	lo, hi := 0, len(n.children)
 	for lo < hi {
 		mid := lo + (hi-lo)/2
-		cmp := strings.Compare(n.children[mid].prefix, seg)
-		if cmp == 0 {
+		if n.children[mid].prefix == seg {
 			return n.children[mid]
 		}
-		if cmp < 0 {
+		if n.children[mid].prefix < seg {
 			lo = mid + 1
 		} else {
 			hi = mid

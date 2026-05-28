@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/textproto"
-	"regexp"
 	"strings"
 
 	"github.com/kamalyes/grpc-runtime/httprule"
@@ -49,7 +48,33 @@ const (
 	UnescapingModeDefault = UnescapingModeLegacy
 )
 
-var encodedPathSplitter = regexp.MustCompile("(/|%2F)")
+// splitPathEncoded 将路径按 / 和 %2F 分割为组件
+// 替代 regexp.Split，手动扫描避免 regex 开销
+func splitPathEncoded(path string) []string {
+	var parts []string
+	start := 0
+	for i := 0; i < len(path); {
+		if path[i] == '/' {
+			if i > start {
+				parts = append(parts, path[start:i])
+			}
+			start = i + 1
+			i++
+		} else if i+2 < len(path) && path[i] == '%' && path[i+1] == '2' && (path[i+2] == 'F' || path[i+2] == 'f') {
+			if i > start {
+				parts = append(parts, path[start:i])
+			}
+			start = i + 3
+			i += 3
+		} else {
+			i++
+		}
+	}
+	if start < len(path) {
+		parts = append(parts, path[start:])
+	}
+	return parts
+}
 
 // HandlerFunc 处理特定路径模式和 HTTP 方法的函数
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, pathParams map[string]string)
@@ -502,10 +527,8 @@ func matchHandlerPath(h handler) routing.MatchFunc {
 
 func matchPatternPath(pat Pattern, path string, unescapingMode UnescapingMode) (map[string]string, error) {
 	var pathComponents []string
-	// Legacy mode receives an already-unescaped path. AllCharacters uses RawPath
-	// and must split encoded slashes so captures keep the previous semantics.
 	if unescapingMode == UnescapingModeAllCharacters {
-		pathComponents = encodedPathSplitter.Split(path[1:], -1)
+		pathComponents = splitPathEncoded(path[1:])
 	} else {
 		pathComponents = strings.Split(path[1:], "/")
 	}

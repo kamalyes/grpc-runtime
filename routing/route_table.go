@@ -111,16 +111,9 @@ func (t *Table[T]) Add(method string, route Route[T]) {
 	t.fallback[method] = append([]Route[T]{route}, t.fallback[method]...)
 }
 
-// Match 查找指定 method 和 path 的路由
-// 并发安全，通过读锁保护请求期读取
-func (t *Table[T]) Match(method string, path string, opts MatchOptions) (Match[T], bool, error) {
+// matchInternal 内部无锁匹配方法，供 Match 和 MatchOther 复用，减少锁获取次数
+func (t *Table[T]) matchInternal(method string, path string, opts MatchOptions) (Match[T], bool, error) {
 	var zero Match[T]
-	if t == nil {
-		return zero, false, nil
-	}
-
-	t.mu.RLock()
-	defer t.mu.RUnlock()
 
 	// 1 静态路由 O(1) 查找
 	if route, ok := t.static.Lookup(method, path); ok {
@@ -162,6 +155,20 @@ func (t *Table[T]) Match(method string, path string, opts MatchOptions) (Match[T
 	return t.matchFallback(method, path, opts)
 }
 
+// Match 查找指定 method 和 path 的路由
+// 并发安全，通过读锁保护请求期读取
+func (t *Table[T]) Match(method string, path string, opts MatchOptions) (Match[T], bool, error) {
+	var zero Match[T]
+	if t == nil {
+		return zero, false, nil
+	}
+
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	return t.matchInternal(method, path, opts)
+}
+
 // MatchOther 在除 excludedMethod 外的所有 method 中查找路由
 // 并发安全，通过读锁保护请求期读取
 func (t *Table[T]) MatchOther(excludedMethod string, path string, opts MatchOptions) (Match[T], bool, error) {
@@ -171,18 +178,13 @@ func (t *Table[T]) MatchOther(excludedMethod string, path string, opts MatchOpti
 	}
 
 	t.mu.RLock()
-	// 收集所有 method，避免为了 MethodNotAllowed 把静态路由重复放入 fallback
-	seen := make(map[string]bool)
-	for m := range t.methods {
-		seen[m] = true
-	}
-	t.mu.RUnlock()
+	defer t.mu.RUnlock()
 
-	for method := range seen {
+	for method := range t.methods {
 		if method == excludedMethod {
 			continue
 		}
-		if match, ok, err := t.Match(method, path, opts); err != nil || ok {
+		if match, ok, err := t.matchInternal(method, path, opts); err != nil || ok {
 			return match, ok, err
 		}
 	}
